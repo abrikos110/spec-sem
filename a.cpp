@@ -47,8 +47,7 @@ struct CSR_matrix {
     std::vector<double> values;
     size_t n;  // to be positive
 
-    CSR_matrix(size_t n)
-        : n(n) {}
+    CSR_matrix(size_t n) : n(n) {}
 
     double getv(int i, int j) {
         for (int k = IA[i]; k < (i+1 < IA.size() ? IA[i+1] : JA.size()); ++k) {
@@ -64,17 +63,17 @@ struct CSR_matrix {
 CSR_matrix from_tridiagonal(tridiagonal_matrix A) {
     CSR_matrix ans(A.size());
 
-    for (int row = 0; row < A.size(); ++row) {
+    for (int i = 0; i < A.size(); ++i) {
         ans.IA.push_back(ans.JA.size());
-        for (size_t j = std::max(0, row-1);
-                j <= std::min((int)A.size() - 1, row + 1);
+        for (size_t j = std::max(0, i-1);
+                j <= std::min((int)A.size() - 1, i + 1);
                 ++j) {
-            if (A.getv(row, j) != 0) {
+            if (A.getv(i, j) != 0) {
                 if (ans.IA.back() == -1) {
                     ++*ans.IA.rbegin();
                 }
                 ans.JA.push_back(j);
-                ans.values.push_back(A.getv(row, j));
+                ans.values.push_back(A.getv(i, j));
             }
         }
         if (ans.IA.back() == -1) {
