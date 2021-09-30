@@ -22,7 +22,7 @@ struct tridiagonal_matrix {
 
     double &get(int i, int j) {
         if (i - j == 1) {
-            return lower[i];
+            return lower[j];
         }
         else if (i == j) {
             return middle[i];
@@ -48,10 +48,15 @@ struct CSR_matrix {
     size_t n;  // to be positive
 
     CSR_matrix(size_t n)
-        : n(n) {
-        IA.reserve(n+2);
-        JA.reserve(3*n);
-        values.reserve(3*n);
+        : n(n) {}
+
+    double getv(int i, int j) {
+        for (int k = IA[i]; k < (i+1 < IA.size() ? IA[i+1] : JA.size()); ++k) {
+            if (JA[k] == j) {
+                return values[k];
+            }
+        }
+        return 0;
     }
 };
 
@@ -81,33 +86,35 @@ CSR_matrix from_tridiagonal(tridiagonal_matrix A) {
 }
 
 
+CSR_matrix generate_matrix(size_t n) {
+    tridiagonal_matrix a(n);
+    for (int i = 0; i < a.size()-1; ++i) {
+        a.middle[i] = i+2;
+        a.upper[i] = i+1;
+        a.lower[i] = i+3;
+    }
+    *a.middle.rbegin() = n+5;
 
+    return from_tridiagonal(a);
+}
+
+
+
+#define PRINT_LINEAR(x, name) do {std::cout << (name) << " : ";\
+    for (int iggg : (x)) std::cout << iggg << " ";\
+    std::cout << std::endl; } while(0)
 
 int main() {
-    tridiagonal_matrix a(10);
+    CSR_matrix b = generate_matrix(10);
+
+    PRINT_LINEAR(b.IA, "IA");
+    PRINT_LINEAR(b.JA, "JA");
+    PRINT_LINEAR(b.values, "A ");
+
     for (int i = 0; i < 10; ++i) {
-        a.middle[i] = i+1;
-        a.upper[i] = i+1;
-        a.lower[i] = i+1;
+        for (int j = 0; j < 10; ++j) {
+            std::cout << b.getv(i, j) << "  ";
+        }
+        std::cout << "\n";
     }
-
-    CSR_matrix b = from_tridiagonal(a);
-
-    std::cout << "IA : ";
-    for (int i : b.IA) {
-        std::cout << i << " ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "JA : ";
-    for (int i : b.JA) {
-        std::cout << i << " ";
-    }
-    std::cout << std::endl;
-
-    std::cout << "A : ";
-    for (int i : b.values) {
-        std::cout << i << " ";
-    }
-    std::cout << std::endl;
 }
