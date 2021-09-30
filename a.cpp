@@ -30,7 +30,7 @@ struct tridiagonal_matrix {
         else if (i - j == -1) {
             return upper[i];
         }
-        throw "sth";
+        throw "|i-j| > 1";
     }
 
     double getv(int i, int j) {
