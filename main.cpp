@@ -87,10 +87,10 @@ CSR_matrix generate_matrix(size_t n) {
     return from_tridiagonal(a);
 }
 
-std::vector<double> generate_vector(size_t n) {
+std::vector<double> generate_vector(size_t n, size_t k) {
     std::vector<double> ans(n, 0);
     for (size_t i = 0; i < n; ++i) {
-        ans[i] = (((~i) ^ 1379) % 97);
+        ans[i] = ((((~i) ^ 1379) + int(ans[(i-1)*(i>0)]*k)) % 97);
     }
     return ans;
 }
@@ -107,11 +107,31 @@ std::vector<double> product(CSR_matrix A, std::vector<double> v) {
 }
 
 
+double scalar_product(std::vector<double> a, std::vector<double> b) {
+    double ans = 0;
+    for (size_t i = 0; i < a.size(); ++i) {
+        ans += a[i] * b[i];
+    }
+    return ans;
+}
+
+
+// x = a * x + b * y
+void linear_combination(double a, double b,
+        std::vector<double> &x, std::vector<double> y) {
+    for (size_t i = 0; i < x.size(); ++i) {
+        x[i] = a * x[i] + b * y[i];
+    }
+}
+
+
 #define PRINT_LINEAR(x, name) do {std::cout << (name) << " : ";\
-    for (auto iggg : (x)) std::cout << iggg << " ";\
+    for (auto iggg : (x)) std::cout << iggg << ", ";\
     std::cout << std::endl; } while(0)
 
 int main() {
+    std::cout.precision(16);
+
     int N = 10;
     CSR_matrix b = generate_matrix(N);
 
@@ -126,7 +146,14 @@ int main() {
         std::cout << "\n";
     }
 
-    auto v = generate_vector(N);
+    auto v = generate_vector(N, 0);
     PRINT_LINEAR(v, "v  ");
     PRINT_LINEAR(product(b, v), "A v");
+
+    auto h = generate_vector(N, 1);
+    PRINT_LINEAR(h, "h  ");
+    std::cout << "(h, v) = " << scalar_product(h, v) << "\n";
+
+    linear_combination(3.14, 2.78, h, v);
+    PRINT_LINEAR(h, "3.14*h + 2.78*v");
 }
