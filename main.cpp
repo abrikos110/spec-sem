@@ -14,21 +14,21 @@ struct tridiagonal_matrix {
         return middle.size();
     }
 
-    double &get(int i, int j) {
+    double &get(size_t i, size_t j) {
         if (i - j == 1) {
             return lower[j];
         }
         else if (i == j) {
             return middle[i];
         }
-        else if (i - j == -1) {
+        else if (j - i == 1) {
             return upper[i];
         }
         throw "|i-j| > 1";
     }
 
-    double getv(int i, int j) {
-        return (-1 <= i-j && i-j <= 1) ? get(i, j) : 0;
+    double getv(size_t i, size_t j) {
+        return (j <= i+1 && i <= j+1) ? get(i, j) : 0;
     }
 };
 
@@ -107,7 +107,7 @@ std::vector<double> product(CSR_matrix A, std::vector<double> v) {
 }
 
 
-double scalar_product(std::vector<double> a, std::vector<double> b) {
+double dot_product(std::vector<double> a, std::vector<double> b) {
     double ans = 0;
     for (size_t i = 0; i < a.size(); ++i) {
         ans += a[i] * b[i];
@@ -152,7 +152,7 @@ int main() {
 
     auto h = generate_vector(N, 1);
     PRINT_LINEAR(h, "h  ");
-    std::cout << "(h, v) = " << scalar_product(h, v) << "\n";
+    std::cout << "(h, v) = " << dot_product(h, v) << "\n";
 
     linear_combination(3.14, 2.78, h, v);
     PRINT_LINEAR(h, "3.14*h + 2.78*v");
