@@ -7,14 +7,8 @@
 struct tridiagonal_matrix {
     std::vector<double> upper, middle, lower;
 
-    tridiagonal_matrix(size_t n) {
-        for (size_t i = 0; i < n-1; ++i) {
-            upper.push_back(0);
-            middle.push_back(0);
-            lower.push_back(0);
-        }
-        middle.push_back(0);
-    }
+    tridiagonal_matrix(size_t n)
+        : upper(n-1, 0), middle(n, 0), lower(n-1, 0) {}
 
     size_t size() {
         return middle.size();
@@ -34,23 +28,31 @@ struct tridiagonal_matrix {
     }
 
     double getv(int i, int j) {
-        if (-1 > i - j || i - j > 1) {
-            return 0;
-        }
-        return get(i, j);
+        return (-1 <= i-j && i-j <= 1) ? get(i, j) : 0;
     }
 };
 
 
 struct CSR_matrix {
-    std::vector<int> IA, JA;
+    std::vector<size_t> IA, JA;
     std::vector<double> values;
-    size_t n;  // to be positive
 
-    CSR_matrix(size_t n) : n(n) {}
+    CSR_matrix(size_t n)
+        : IA(n, 0) {}
 
-    double getv(int i, int j) {
-        for (int k = IA[i]; k < (i+1 < IA.size() ? IA[i+1] : JA.size()); ++k) {
+    size_t size() {
+        return IA.size();
+    }
+
+    size_t JA_begin(size_t i) {
+        return IA[i];
+    }
+    size_t JA_end(size_t i) {
+        return i < size() - 1 ? IA[i+1] : JA.size();
+    }
+
+    double getv(size_t i, size_t j) {
+        for (size_t k = JA_begin(i); k < JA_end(i); ++k) {
             if (JA[k] == j) {
                 return values[k];
             }
@@ -62,58 +64,69 @@ struct CSR_matrix {
 
 CSR_matrix from_tridiagonal(tridiagonal_matrix A) {
     CSR_matrix ans(A.size());
-
-    for (int i = 0; i < A.size(); ++i) {
-        ans.IA.push_back(ans.JA.size());
-        for (size_t j = std::max(0, i-1);
-                j <= std::min((int)A.size() - 1, i + 1);
-                ++j) {
+    for (size_t i = 0; i < A.size(); ++i) {
+        ans.IA[i] = ans.JA.size();
+        for (size_t j = (i-1) * (i>0); j < A.size() && j < i+2; ++j) {
             if (A.getv(i, j) != 0) {
-                if (ans.IA.back() == -1) {
-                    ++*ans.IA.rbegin();
-                }
                 ans.JA.push_back(j);
                 ans.values.push_back(A.getv(i, j));
             }
         }
-        if (ans.IA.back() == -1) {
-            throw "zero row";
-        }
     }
-
     return ans;
 }
 
 
 CSR_matrix generate_matrix(size_t n) {
     tridiagonal_matrix a(n);
-    for (int i = 0; i < a.size()-1; ++i) {
-        a.middle[i] = i+2;
-        a.upper[i] = i+1;
-        a.lower[i] = i+3;
+    for (size_t i = 0; i < n-1; ++i) {
+        a.middle[i] = a.upper[i] = a.lower[i] = i;
     }
     *a.middle.rbegin() = n+5;
 
     return from_tridiagonal(a);
 }
 
+std::vector<double> generate_vector(size_t n) {
+    std::vector<double> ans(n, 0);
+    for (size_t i = 0; i < n; ++i) {
+        ans[i] = (((~i) ^ 1379) % 97);
+    }
+    return ans;
+}
+
+
+std::vector<double> product(CSR_matrix A, std::vector<double> v) {
+    std::vector<double> ans(A.size(), 0);
+    for (size_t i = 0; i < A.size(); ++i) {
+        for (size_t k = A.JA_begin(i); k < A.JA_end(i); ++k) {
+            ans[i] += A.values[k] * v[A.JA[k]];
+        }
+    }
+    return ans;
+}
 
 
 #define PRINT_LINEAR(x, name) do {std::cout << (name) << " : ";\
-    for (int iggg : (x)) std::cout << iggg << " ";\
+    for (auto iggg : (x)) std::cout << iggg << " ";\
     std::cout << std::endl; } while(0)
 
 int main() {
-    CSR_matrix b = generate_matrix(10);
+    int N = 10;
+    CSR_matrix b = generate_matrix(N);
 
     PRINT_LINEAR(b.IA, "IA");
     PRINT_LINEAR(b.JA, "JA");
     PRINT_LINEAR(b.values, "A ");
 
-    for (int i = 0; i < 10; ++i) {
-        for (int j = 0; j < 10; ++j) {
+    for (int i = 0; i < N; ++i) {
+        for (int j = 0; j < N; ++j) {
             std::cout << b.getv(i, j) << "  ";
         }
         std::cout << "\n";
     }
+
+    auto v = generate_vector(N);
+    PRINT_LINEAR(v, "v  ");
+    PRINT_LINEAR(product(b, v), "A v");
 }
