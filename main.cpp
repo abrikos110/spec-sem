@@ -10,7 +10,7 @@ struct tridiagonal_matrix {
     tridiagonal_matrix(size_t n)
         : upper(n-1, 0), middle(n, 0), lower(n-1, 0) {}
 
-    size_t size() {
+    size_t size() const {
         return middle.size();
     }
 
@@ -27,8 +27,17 @@ struct tridiagonal_matrix {
         throw "|i-j| > 1";
     }
 
-    double getv(size_t i, size_t j) {
-        return (j <= i+1 && i <= j+1) ? get(i, j) : 0;
+    double getv(size_t i, size_t j) const {
+        if (i - j == 1) {
+            return lower[j];
+        }
+        else if (i == j) {
+            return middle[i];
+        }
+        else if (j - i == 1) {
+            return upper[i];
+        }
+        return 0;
     }
 };
 
@@ -40,18 +49,18 @@ struct CSR_matrix {
     CSR_matrix(size_t n)
         : IA(n, 0) {}
 
-    size_t size() {
+    size_t size() const {
         return IA.size();
     }
 
-    size_t JA_begin(size_t i) {
+    size_t JA_begin(size_t i) const {
         return IA[i];
     }
-    size_t JA_end(size_t i) {
+    size_t JA_end(size_t i) const {
         return i < size() - 1 ? IA[i+1] : JA.size();
     }
 
-    double getv(size_t i, size_t j) {
+    double getv(size_t i, size_t j) const {
         for (size_t k = JA_begin(i); k < JA_end(i); ++k) {
             if (JA[k] == j) {
                 return values[k];
@@ -62,7 +71,7 @@ struct CSR_matrix {
 };
 
 
-CSR_matrix from_tridiagonal(tridiagonal_matrix A) {
+CSR_matrix from_tridiagonal(const tridiagonal_matrix &A) {
     CSR_matrix ans(A.size());
     for (size_t i = 0; i < A.size(); ++i) {
         ans.IA[i] = ans.JA.size();
@@ -96,18 +105,30 @@ std::vector<double> generate_vector(size_t n, size_t k) {
 }
 
 
-std::vector<double> product(CSR_matrix A, std::vector<double> v) {
-    std::vector<double> ans(A.size(), 0);
+void product_in_place(
+        const CSR_matrix &A,
+        const std::vector<double> &v,
+        std::vector<double> &ans) {
+
+    ans.resize(A.size(), 0);
     for (size_t i = 0; i < A.size(); ++i) {
         for (size_t k = A.JA_begin(i); k < A.JA_end(i); ++k) {
             ans[i] += A.values[k] * v[A.JA[k]];
         }
     }
+}
+
+std::vector<double> product(
+        const CSR_matrix &A,
+        const std::vector<double> &v) {
+
+    std::vector<double> ans;
+    product_in_place(A, v, ans);
     return ans;
 }
 
 
-double dot_product(std::vector<double> a, std::vector<double> b) {
+double dot_product(const std::vector<double> &a, const std::vector<double> &b) {
     double ans = 0;
     for (size_t i = 0; i < a.size(); ++i) {
         ans += a[i] * b[i];
@@ -118,7 +139,8 @@ double dot_product(std::vector<double> a, std::vector<double> b) {
 
 // x = a * x + b * y
 void linear_combination(double a, double b,
-        std::vector<double> &x, std::vector<double> y) {
+        std::vector<double> &x, const std::vector<double> &y) {
+
     for (size_t i = 0; i < x.size(); ++i) {
         x[i] = a * x[i] + b * y[i];
     }
