@@ -1,5 +1,6 @@
 #include <iostream>
 #include <cmath>
+#include <chrono>
 #include <string>
 #include <random>
 #include <vector>
@@ -76,7 +77,6 @@ struct CSR_matrix {
     }
 };
 
-/////////////////////////////////
 
 void from_tridiagonal(const tridiagonal_matrix &A, CSR_matrix &ans) {
     for (size_t i = 0; i < A.size(); ++i) {
@@ -90,6 +90,7 @@ void from_tridiagonal(const tridiagonal_matrix &A, CSR_matrix &ans) {
     }
 }
 
+/////////////////////////////////
 
 void generate_matrix(size_t n, uint_fast64_t seed, CSR_matrix &ans) {
     std::mt19937 rg(seed);
@@ -182,15 +183,92 @@ std::vector<double> control_sum(
     return ans;
 }
 
+/*
+double time() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::high_resolution_clock::now().time_since_epoch()).count()
+        / 1e9;
+}*/
 
-#define PRINT_LINEAR(x, name) do {std::cout << (name) << " : [";\
+
+#define PRINT_VECTOR(x, name) do {std::cout << (name) << " : [";\
     for (auto iggg : (x)) std::cout << iggg << ", ";\
     std::cout << "]\n"; } while(0)
+
+void test_mat_vec_product(
+        int N, uint_fast64_t seed,
+        uint_fast64_t cs_seed, bool debug) {
+    std::vector<double> v, pr;
+    CSR_matrix b(N);
+
+    generate_matrix(N, 10 + seed, b);
+    generate_vector(N, 1+seed, v);
+
+    product(b, v, pr);
+
+    std::cout << "Matrix-vector product test\n";
+    if (debug) {
+        PRINT_VECTOR(b.IA, "IA");
+        PRINT_VECTOR(b.JA, "JA");
+        PRINT_VECTOR(b.values, "A ");
+
+        std::cout << "[\n";
+        for (int i = 0; i < N; ++i) {
+            std::cout << " [";
+            for (int j = 0; j < N; ++j) {
+                std::cout << b.getv(i, j) << ",  ";
+            }
+            std::cout << "],\n";
+        }
+        std::cout << "]\n";
+
+        PRINT_VECTOR(v, "v  ");
+        PRINT_VECTOR(pr, "A v");
+    }
+    PRINT_VECTOR(control_sum(pr, cs_seed), "control sum of A v");
+    std::cout << std::endl;
+}
+
+
+void test_linear_combination(
+        int N, uint_fast64_t seed,
+        uint_fast64_t cs_seed, bool debug) {
+
+    std::vector<double> v, h;
+    generate_vector(N, 1+seed, v);
+    generate_vector(N, 2+seed, h);
+
+    std::cout << "Linear combination test\n";
+    if (debug) {
+        PRINT_VECTOR(v, "v");
+        PRINT_VECTOR(h, "h");
+    }
+    linear_combination(3.14, 2.78, h, v);
+    if (debug) {
+        PRINT_VECTOR(h, "h = 3.14*h + 2.78*v");
+    }
+    PRINT_VECTOR(control_sum(h, cs_seed), "control sum of h");
+    std::cout << std::endl;
+}
+
+
+void test_dot_product(int N, uint_fast64_t seed, bool debug) {
+    std::cout << "Dot product test\n";
+    std::vector<double> v, h;
+    generate_vector(N, 1+seed, v);
+    generate_vector(N, 2+seed, h);
+
+    if (debug) {
+        PRINT_VECTOR(v, "v");
+        PRINT_VECTOR(h, "h");
+    }
+    std::cout << "dot(h, v) = " << dot_product(h, v) << "\n\n";
+}
+
 
 int main(int argc, char **args) {
     int N = 0;
     uint_fast64_t seed = 22, cs_seed = 999;
-    std::vector<double> v, pr, h;
 
     std::cout.precision(16);
 
@@ -207,47 +285,10 @@ int main(int argc, char **args) {
         }
     }
 
-    bool debug = (N <= 10);
-    CSR_matrix b(N);
-
-
     std::cout << "Usage: " << args[0] << " N [seed] [control_sum_seed]\n\n";
-    std::cout << "N : " << N << std::endl;
+    std::cout << "N : " << N << "\n\n";
 
-    generate_matrix(N, 10 + seed, b);
-    if (debug) {
-        PRINT_LINEAR(b.IA, "IA");
-        PRINT_LINEAR(b.JA, "JA");
-        PRINT_LINEAR(b.values, "A ");
-
-        std::cout << "[\n";
-        for (int i = 0; i < N; ++i) {
-            std::cout << " [";
-            for (int j = 0; j < N; ++j) {
-                std::cout << b.getv(i, j) << ",  ";
-            }
-            std::cout << "],\n";
-        }
-        std::cout << "]\n";
-    }
-
-    generate_vector(N, 1+seed, v);
-    product(b, v, pr);
-    if (debug) {
-        PRINT_LINEAR(v, "v  ");
-        PRINT_LINEAR(pr, "A v");
-    }
-    PRINT_LINEAR(control_sum(pr, cs_seed), "control sum of A v");
-
-    generate_vector(N, 2+seed, h);
-    if (debug) {
-        PRINT_LINEAR(h, "h  ");
-        std::cout << "(h, v) = " << dot_product(h, v) << "\n";
-    }
-
-    linear_combination(3.14, 2.78, h, v);
-    if (debug) {
-        PRINT_LINEAR(h, "h = 3.14*h + 2.78*v");
-    }
-    PRINT_LINEAR(control_sum(h, cs_seed), "control sum of h");
+    test_dot_product(N, seed, N <= 10);
+    test_mat_vec_product(N, seed, cs_seed, N <= 10);
+    test_linear_combination(N, seed, cs_seed, N <= 10);
 }
