@@ -94,6 +94,7 @@ void product(
         std::vector<double> &ans) {
 
     ans.resize(A.size(), 0);
+    #pragma omp parallel for
     for (size_t i = 0; i < A.size(); ++i) {
         for (size_t k = A.JA_begin(i); k < A.JA_end(i); ++k) {
             ans[i] += A.values[k] * v[A.JA[k]];
@@ -107,6 +108,7 @@ double dot_product(
         const std::vector<double> &b) {
 
     double ans = 0;
+    #pragma omp parallel for reduction(+:ans)
     for (size_t i = 0; i < a.size(); ++i) {
         ans += a[i] * b[i];
     }
@@ -117,6 +119,7 @@ double dot_product(
 void linear_combination(double a, double b,
         std::vector<double> &x, const std::vector<double> &y) {
     // x = a * x + b * y
+    #pragma omp parallel for
     for (size_t i = 0; i < x.size(); ++i) {
         x[i] = a * x[i] + b * y[i];
     }
