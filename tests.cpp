@@ -10,18 +10,16 @@
 
 void generate_matrix(size_t n, uint_fast64_t seed, CSR_matrix &ans) {
     std::mt19937 rg(seed);
-    std::uniform_int_distribution<> dist(-n/2, n/2);
+    std::uniform_real_distribution<> dist(-1, 1);
 
     ans.set_size(n);
-    tridiagonal_matrix a(n);
-    for (size_t i = 0; i < n-1; ++i) {
-        a.middle[i] = dist(rg);
-        a.upper[i] = dist(rg);
-        a.lower[i] = dist(rg);
+    for (size_t i = 0; i < n; ++i) {
+        ans.IA[i] = ans.JA.size();
+        for (size_t j = (i-1) * (i>0); j < n && j < i+2; ++j) {
+            ans.JA.push_back(j);
+            ans.values.push_back(dist(rg));
+        }
     }
-    *a.middle.rbegin() = dist(rg);
-
-    from_tridiagonal(a, ans);
 }
 
 
