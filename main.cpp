@@ -25,7 +25,7 @@ int main() {
     std::cout.precision(16);
 
 #ifdef TEST
-#define N 9
+#define N 100
     std::cout << "N : " << N << "\n\n";
 
     test_dot_product(N, SEED, N <= 10);
