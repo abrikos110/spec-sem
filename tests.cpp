@@ -9,15 +9,13 @@
 
 
 void generate_matrix(size_t n, uint_fast64_t seed, CSR_matrix &ans) {
-    std::mt19937 rg(seed);
-    std::uniform_real_distribution<> dist(-1, 1);
-
     ans.set_size(n);
+    double x = std::sin(seed) * 1234.56789;
     for (size_t i = 0; i < n; ++i) {
         ans.IA[i] = ans.JA.size();
         for (size_t j = (i-1) * (i>0); j < n && j < i+2; ++j) {
             ans.JA.push_back(j);
-            ans.values.push_back(dist(rg));
+            ans.values.push_back(std::sin(x += 10));
         }
     }
 }
@@ -27,12 +25,11 @@ void generate_vector(
         size_t n, uint_fast64_t seed,
         std::vector<double> &ans) {
 
-    std::mt19937 rg(seed);
-    std::uniform_real_distribution<> dist(-1, 1);
+    double x = std::sin(seed) * 1234.56789;
 
     ans.resize(n, 0);
     for (size_t i = 0; i < n; ++i) {
-        ans[i] = dist(rg);
+        ans[i] = std::sin(x += 10);
     }
 }
 
