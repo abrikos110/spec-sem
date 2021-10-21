@@ -15,7 +15,7 @@ double time() {
 }
 
 
-double avg_time_of_mat_vec_product(size_t N, int repeats,
+double avg_time_of_mat_vec_product(size_t N, size_t repeats,
         uint_fast64_t seed, uint_fast64_t cs_seed,
         std::vector<double> &csum) {
 
@@ -26,7 +26,7 @@ double avg_time_of_mat_vec_product(size_t N, int repeats,
     generate_matrix(N, seed, a);
 
     double st = time();
-    for (int i = 0; i < repeats; ++i) {
+    for (size_t i = 0; i < repeats; ++i) {
         product(a, v, pr);
     }
     st = time() - st;
@@ -37,7 +37,7 @@ double avg_time_of_mat_vec_product(size_t N, int repeats,
 }
 
 
-double avg_time_of_linear_combination(size_t N, int repeats,
+double avg_time_of_linear_combination(size_t N, size_t repeats,
         uint_fast64_t seed, uint_fast64_t cs_seed,
         std::vector<double> &csum) {
 
@@ -47,7 +47,7 @@ double avg_time_of_linear_combination(size_t N, int repeats,
     generate_vector(N, seed, y);
 
     double st = time();
-    for (int i = 0; i < repeats; ++i) {
+    for (size_t i = 0; i < repeats; ++i) {
         linear_combination(0.72, 0.27, x, y); // this is cumulative sum for my laziness
         // sum of coeffs less than 1 to avoid exponential growth
     }
@@ -59,7 +59,7 @@ double avg_time_of_linear_combination(size_t N, int repeats,
 }
 
 
-double avg_time_of_dot_product(size_t N, int repeats,
+double avg_time_of_dot_product(size_t N, size_t repeats,
         uint_fast64_t seed, double &dot) {
 
     std::vector<double> x, y;
@@ -67,7 +67,7 @@ double avg_time_of_dot_product(size_t N, int repeats,
     generate_vector(N, seed, y);
 
     double st = time();
-    for (int i = 0; i < repeats; ++i) {
+    for (size_t i = 0; i < repeats; ++i) {
         dot = dot_product(x, y);
     }
     st = time() - st;

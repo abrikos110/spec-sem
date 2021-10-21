@@ -63,13 +63,13 @@ std::vector<double> control_sum(
     std::cout << "]\n"; } while(0)
 
 void test_mat_vec_product(
-        int N, uint_fast64_t seed,
+        size_t n, uint_fast64_t seed,
         uint_fast64_t cs_seed, bool debug) {
     std::vector<double> v, pr;
-    CSR_matrix b(N);
+    CSR_matrix b(n);
 
-    generate_matrix(N, 10 + seed, b);
-    generate_vector(N, 1+seed, v);
+    generate_matrix(n, 10 + seed, b);
+    generate_vector(n, 1+seed, v);
 
     product(b, v, pr);
 
@@ -80,9 +80,9 @@ void test_mat_vec_product(
         PRINT_VECTOR(b.values, "A ");
 
         std::cout << "[\n";
-        for (int i = 0; i < N; ++i) {
+        for (size_t i = 0; i < n; ++i) {
             std::cout << " [";
-            for (int j = 0; j < N; ++j) {
+            for (size_t j = 0; j < n; ++j) {
                 std::cout << b.getv(i, j) << ",  ";
             }
             std::cout << "],\n";
@@ -98,12 +98,12 @@ void test_mat_vec_product(
 
 
 void test_linear_combination(
-        int N, uint_fast64_t seed,
+        size_t n, uint_fast64_t seed,
         uint_fast64_t cs_seed, bool debug) {
 
     std::vector<double> v, h;
-    generate_vector(N, 1+seed, v);
-    generate_vector(N, 2+seed, h);
+    generate_vector(n, 1+seed, v);
+    generate_vector(n, 2+seed, h);
 
     std::cout << "Linear combination test\n";
     if (debug) {
@@ -119,11 +119,11 @@ void test_linear_combination(
 }
 
 
-void test_dot_product(int N, uint_fast64_t seed, bool debug) {
+void test_dot_product(size_t n, uint_fast64_t seed, bool debug) {
     std::cout << "Dot product test\n";
     std::vector<double> v, h;
-    generate_vector(N, 1+seed, v);
-    generate_vector(N, 2+seed, h);
+    generate_vector(n, 1+seed, v);
+    generate_vector(n, 2+seed, h);
 
     if (debug) {
         PRINT_VECTOR(v, "v");
