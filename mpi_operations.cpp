@@ -1,35 +1,12 @@
 #ifndef MPI_OPERATIONS_CPP
 #define MPI_OPERATIONS_CPP
 
-#include <stdint.h>
-#include <limits.h>
+#include "mpi_operations.h"
 
-#if SIZE_MAX == UCHAR_MAX
-   #define my_MPI_SIZE_T MPI_UNSIGNED_CHAR
-#elif SIZE_MAX == USHRT_MAX
-   #define my_MPI_SIZE_T MPI_UNSIGNED_SHORT
-#elif SIZE_MAX == UINT_MAX
-   #define my_MPI_SIZE_T MPI_UNSIGNED
-#elif SIZE_MAX == ULONG_MAX
-   #define my_MPI_SIZE_T MPI_UNSIGNED_LONG
-#elif SIZE_MAX == ULLONG_MAX
-   #define my_MPI_SIZE_T MPI_UNSIGNED_LONG_LONG
-#else
-   #error "what is happening here?"
-#endif
+#define PRINT_VECTOR(x, name) do {std::cout << (name) << " : [";\
+    for (auto iggg : (x)) std::cout << iggg << ", ";\
+    std::cout << "]\n"; } while(0)
 
-
-#include <cmath>
-#include <algorithm>
-#include <vector>
-
-#include <chrono>
-#include <thread>
-
-#include "matrices.cpp"
-
-
-#define handle_res(res) handle_res_f(res, #res " FAILED")
 void handle_res_f(int res, const char *err_msg) {
     if (res != MPI_SUCCESS) {
         std::cerr << err_msg << " " << res << std::endl;
@@ -308,6 +285,7 @@ void product_mpi(size_t n,
 void test_mat_vec_product_mpi(
         size_t n, uint_fast64_t seed, uint_fast64_t cs_seed,
         size_t my_id, size_t proc_cnt, bool debug) {
+
     std::vector<double> v, pr;
     CSR_matrix b(n);
 

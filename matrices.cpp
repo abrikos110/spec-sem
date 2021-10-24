@@ -1,40 +1,17 @@
 #ifndef MATRICES_CPP
 #define MATRICES_CPP
 
-#include <vector>
+#include "matrices.h"
 
 
-struct CSR_matrix {
-    std::vector<size_t> IA, JA;
-    std::vector<double> values;
-
-    CSR_matrix(size_t n = 0)
-        : IA(n, 0) {}
-
-    size_t size() const {
-        return IA.size();
-    }
-
-    void set_size(size_t n) {
-        IA.resize(n, 0);
-    }
-
-    size_t JA_begin(size_t i) const {
-        return IA[i];
-    }
-    size_t JA_end(size_t i) const {
-        return i < size() - 1 ? IA[i+1] : JA.size();
-    }
-
-    double getv(size_t i, size_t j) const {
-        for (size_t k = JA_begin(i); k < JA_end(i); ++k) {
-            if (JA[k] == j) {
-                return values[k];
-            }
+double CSR_matrix::getv(size_t i, size_t j) const {
+    for (size_t k = JA_begin(i); k < JA_end(i); ++k) {
+        if (JA[k] == j) {
+            return values[k];
         }
-        return 0;
     }
-};
+    return 0;
+}
 
 
 void product(

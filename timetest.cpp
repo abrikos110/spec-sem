@@ -1,11 +1,7 @@
 #ifndef TIMETEST_CPP
 #define TIMETEST_CPP
 
-#include <vector>
-#include <chrono>
-
-#include "matrices.cpp"
-#include "tests.cpp"
+#include "timetest.h"
 
 
 double time() {

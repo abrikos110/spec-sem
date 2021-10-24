@@ -1,11 +1,7 @@
-#ifndef TESTS_CPP
-#define TESTS_CPP
+#ifndef TEST_CPP
+#define TEST_CPP
 
-#include <vector>
-#include <cmath>
-#include <random>
-#include <algorithm>
-#include "matrices.cpp"
+#include "test.h"
 
 
 void generate_matrix(size_t n, uint_fast64_t seed, CSR_matrix &ans) {
