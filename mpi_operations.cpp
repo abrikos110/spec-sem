@@ -1,6 +1,9 @@
 #ifndef MPI_OPERATIONS_CPP
 #define MPI_OPERATIONS_CPP
 
+#include <chrono>
+#include <thread>
+#include <utility>
 #include "mpi_operations.h"
 
 #define PRINT_VECTOR(x, name) do {std::cout << (name) << " : [";\
@@ -161,107 +164,60 @@ void test_linear_combination_mpi(
     }
 }
 
-///////////////////////////////////////////
-// NOT COMPLETED
+
 void product_mpi(size_t n,
         const CSR_matrix &mat_piece,
         const std::vector<double> &v_piece,
         std::vector<double> &ans_piece,
         size_t my_id, size_t proc_cnt) {
 
-    size_t my_len = my_end(n, my_id, proc_cnt) - my_begin(n, my_id, proc_cnt);
-    ans_piece.resize(my_len, 0);
+    ans_piece.resize(my_end(n, my_id, proc_cnt)
+        - my_begin(n, my_id, proc_cnt), 0);
 
     std::vector<size_t> want;
+    std::vector<std::pair<size_t, size_t> > ask;
     for (size_t i = 0; i < mat_piece.size(); ++i) {
         for (size_t k = mat_piece.JA_begin(i); k < mat_piece.JA_end(i); ++k) {
             size_t col = mat_piece.JA[k];
-            if (col < my_begin(n, my_id, proc_cnt) || col >= my_end(n, my_id, proc_cnt)) {
+            if (col < my_begin(n, my_id, proc_cnt)
+                    || col >= my_end(n, my_id, proc_cnt)) {
                 want.push_back(col);
+                ask.emplace_back(i + my_begin(n, my_id, proc_cnt), col);
             }
         }
     }
     want.erase(std::unique(want.begin(), want.end()), want.end());
+    ask.erase(std::unique(ask.begin(), ask.end()), ask.end());
 
-    std::vector<size_t> wanted_sizes;
-    for (size_t i = 0, li = 0; i <= want.size(); ++i) {
-        if (i == want.size()) {
-            wanted_sizes.push_back(i - li);
-            break;
-        }
-        while (want[i] >= my_end(n, wanted_sizes.size(), proc_cnt)) {
-            wanted_sizes.push_back(i - li);
-            li = i;
-        }
+    std::vector<double> wanted(want.size()), asked;
+    for (auto k : ask) {
+        asked.push_back(v_piece[k.first - my_begin(n, my_id, proc_cnt)]);
     }
-    wanted_sizes.resize(proc_cnt, 0);
 
     std::vector<MPI_Request> reqs(proc_cnt * 2, MPI_REQUEST_NULL);
-
-    std::vector<size_t> asked_sizes(proc_cnt, 0);
-    size_t asked_sz_sum = 0;
-    for (size_t id = 0; id < proc_cnt; ++id) {
-        if (id == my_id) {
-            continue;
+    for (size_t i = 0, li = 0, id = 0; i <= want.size(); ++i) {
+        while (i == want.size() || want[i] >= my_end(n, id, proc_cnt)) {
+            if (i - li > 0) {
+                handle_res(MPI_Irecv(&wanted[li], i - li, MPI_DOUBLE,
+                    id, my_id, MPI_COMM_WORLD, &reqs[id]));
+            }
+            li = i; ++id;
+            if (i == want.size()) {
+                break;
+            }
         }
-        // isend wanted size
-        handle_res(MPI_Isend(&wanted_sizes[id], 1, my_MPI_SIZE_T, id,
-            1+10*id, MPI_COMM_WORLD, &reqs[id]));
-        // irecv asked size
-        handle_res(MPI_Irecv(&asked_sizes[id], 1, my_MPI_SIZE_T, id,
-            1+10*my_id, MPI_COMM_WORLD, &reqs[id + proc_cnt]));
     }
-    // waitall
-    handle_res(MPI_Waitall(reqs.size(), &reqs[0], MPI_STATUSES_IGNORE));
-    for (auto i : asked_sizes) {
-        asked_sz_sum += i;
-    }
-
-    std::vector<size_t> recv_idx(asked_sz_sum);
-    std::vector<double> send_val(asked_sz_sum), recv_val(want.size());
-
-    reqs.clear();
-    reqs.resize(proc_cnt * 2, MPI_REQUEST_NULL);
-    for (size_t id = 0, i = 0; id < proc_cnt; ++id) {
-        // isend to id given range if indices
-        if (wanted_sizes[id] != 0) {
-            handle_res(MPI_Isend(&want[i], wanted_sizes[id], my_MPI_SIZE_T,
-                id, 2+10*id, MPI_COMM_WORLD, &reqs[id]));
+    for (size_t i = 0, li = 0, id = 0; i <= ask.size(); ++i) {
+        while (i == ask.size() || ask[i].second >= my_end(n, id, proc_cnt)) {
+            if (i - li > 0) {
+                handle_res(MPI_Isend(&asked[li], i - li, MPI_DOUBLE,
+                    id, id, MPI_COMM_WORLD, &reqs[id + proc_cnt]));
+            }
+            li = i; ++id;
+            if (i == ask.size()) {
+                break;
+            }
         }
-        i += wanted_sizes[id];
-    }
-    for (size_t id = 0, i = 0; id < proc_cnt; ++id) {
-        // irecv from id range of indices
-        if (asked_sizes[id] != 0) {
-            handle_res(MPI_Irecv(&recv_idx[i], asked_sizes[id], my_MPI_SIZE_T,
-                id, 2+10*my_id, MPI_COMM_WORLD, &reqs[id + proc_cnt]));
-        }
-        i += asked_sizes[id];
-    }
-    handle_res(MPI_Waitall(reqs.size(), &reqs[0], MPI_STATUSES_IGNORE));
-
-
-    for (size_t i = 0; i < asked_sz_sum; ++i) {
-        send_val[i] = v_piece[recv_idx[i] - my_begin(n, my_id, proc_cnt)];
-    };
-
-    reqs.clear();
-    reqs.resize(proc_cnt * 2, MPI_REQUEST_NULL);
-    for (size_t id = 0, i = 0; id < proc_cnt; ++id) {
-        // irecv from id wanted values
-        if (wanted_sizes[id] != 0) {
-            handle_res(MPI_Irecv(&recv_val[i], wanted_sizes[id], MPI_DOUBLE,
-                id, 3+10*my_id, MPI_COMM_WORLD, &reqs[id]));
-        }
-        i += wanted_sizes[id];
-    }
-    for (size_t id = 0, i = 0; id < proc_cnt; ++id) {
-        // isend to id asked values
-        if (asked_sizes[id] != 0) {
-            handle_res(MPI_Isend(&send_val[i], asked_sizes[id], MPI_DOUBLE,
-                id, 3+10*id, MPI_COMM_WORLD, &reqs[id + proc_cnt]));
-        }
-        i += asked_sizes[id];
     }
     handle_res(MPI_Waitall(reqs.size(), &reqs[0], MPI_STATUSES_IGNORE));
 
@@ -276,7 +232,7 @@ void product_mpi(size_t n,
                 ans_piece[i] += mat_piece.values[k] * v_piece[col - my_begin(n, my_id, proc_cnt)];
             }
             else {
-                ans_piece[i] += mat_piece.values[k] * recv_val[reverse_want[col]];
+                ans_piece[i] += mat_piece.values[k] * wanted[reverse_want[col]];
             }
         }
     }
