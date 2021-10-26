@@ -11,15 +11,20 @@ double time() {
 }
 
 
-double avg_time_of_mat_vec_product(size_t N, size_t repeats,
+double avg_time_of_mat_vec_product(size_t n, size_t repeats,
         uint_fast64_t seed, uint_fast64_t cs_seed,
-        std::vector<double> &csum) {
+        std::vector<double> &csum,
+        size_t &min_mem_usage, size_t &max_mem_usage) {
 
     std::vector<double> v, pr;
     CSR_matrix a;
 
-    generate_vector(N, seed, v);
-    generate_matrix(N, seed, a);
+    generate_vector(n, 1 + seed, v);
+    generate_matrix(n, 10 + seed, a);
+
+    // assuming a.JA.size() > n
+    min_mem_usage = a.JA.size() * (sizeof(size_t) + sizeof(double)) + n * 2 * sizeof(double);
+    max_mem_usage = a.JA.size() * (sizeof(size_t) + sizeof(double) * 2) + n * sizeof(double);
 
     double st = time();
     for (size_t i = 0; i < repeats; ++i) {
@@ -33,14 +38,16 @@ double avg_time_of_mat_vec_product(size_t N, size_t repeats,
 }
 
 
-double avg_time_of_linear_combination(size_t N, size_t repeats,
+double avg_time_of_linear_combination(size_t n, size_t repeats,
         uint_fast64_t seed, uint_fast64_t cs_seed,
-        std::vector<double> &csum) {
+        std::vector<double> &csum, size_t &mem_usage) {
 
     // control sums are different with different repeats
     std::vector<double> x, y;
-    generate_vector(N, seed, x);
-    generate_vector(N, seed, y);
+    generate_vector(n, 1+seed, x);
+    generate_vector(n, 2+seed, y);
+
+    mem_usage = 3 * n * sizeof(double);
 
     double st = time();
     for (size_t i = 0; i < repeats; ++i) {
@@ -55,12 +62,14 @@ double avg_time_of_linear_combination(size_t N, size_t repeats,
 }
 
 
-double avg_time_of_dot_product(size_t N, size_t repeats,
-        uint_fast64_t seed, double &dot) {
+double avg_time_of_dot_product(size_t n, size_t repeats,
+        uint_fast64_t seed, double &dot, size_t &mem_usage) {
 
     std::vector<double> x, y;
-    generate_vector(N, seed, x);
-    generate_vector(N, seed, y);
+    generate_vector(n, 1+seed, x);
+    generate_vector(n, 2+seed, y);
+
+    mem_usage = 2 * n * sizeof(double);
 
     double st = time();
     for (size_t i = 0; i < repeats; ++i) {

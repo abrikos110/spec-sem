@@ -23,6 +23,8 @@ void product(
 #ifdef _OPENMP
     #pragma omp parallel for
 #endif
+    // read JA.size() * sizeof(size_t) + (n .. JA.size()) * sizeof(double) + JA.size() * sizeof(double)
+    // write n * sizeof(double)
     for (size_t i = 0; i < A.size(); ++i) {
         for (size_t k = A.JA_begin(i); k < A.JA_end(i); ++k) {
             ans[i] += A.values[k] * v[A.JA[k]];
@@ -42,6 +44,9 @@ double dot_product(
     for (size_t i = 0; i < a.size(); ++i) {
         ans += a[i] * b[i];
     }
+    // read 2 * n * sizeof(double)
+    // write O(1)
+    // flop 2 * n
     return ans;
 }
 
@@ -55,6 +60,9 @@ void linear_combination(double a, double b,
     for (size_t i = 0; i < x.size(); ++i) {
         x[i] = a * x[i] + b * y[i];
     }
+    // read 2 * n * sizeof(double)
+    // write n * sizeof(double)
+    // flop 3 * n * sizeof(double)
 }
 
 #endif

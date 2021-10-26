@@ -65,7 +65,7 @@ void test_mat_vec_product(
     CSR_matrix b(n);
 
     generate_matrix(n, 10 + seed, b);
-    generate_vector(n, 1+seed, v);
+    generate_vector(n, 1 + seed, v);
 
     product(b, v, pr);
 

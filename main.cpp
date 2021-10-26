@@ -12,13 +12,15 @@
     std::cout << "]\n"; } while(0)
 
 int main(int argc, char **args) {
-    int n = 1000, rep = 100, num_threads = 8, seed = 1, cs_seed = 2;
+    int n = 1000, rep = 100, num_threads = 1, seed = 1, cs_seed = 2;
     bool timetest = false, debug = false;
 
     if (argc == 1) {
         std::cout << "Usage: " << args[0]
-            << " n [--rep=REPEATS] [--num_threads=NUM] [--seed=SEED] [--cs_seed=CS_SEED] [--timetest] [--debug]\n\n"
-            << "  --timetest  measure average time of mat-vec product, dot product and linear combination\n"
+            << " n [--rep=REPEATS] [--num_threads=NUM] [--seed=SEED] "
+            << "[--cs_seed=CS_SEED] [--timetest] [--debug]\n\n"
+            << "  --timetest  measure average time of mat-vec product,"
+            << " dot product and linear combination\n"
             << "    Without timetest will test operations once\n"
             << "  --debug  print matrices and vectors to stdout\n"
             << "  --seed=SEED  set seed for generating data\n"
@@ -78,17 +80,24 @@ int main(int argc, char **args) {
     }
     else {
         std::vector<double> csum;
+        size_t a, b;
+        double t;
+        t = avg_time_of_mat_vec_product(n, rep, seed, cs_seed, csum, a, b);
         std::cout << "avg time of mat-vec product, n=" << n << ", repeats=" << rep
-            << ": " << avg_time_of_mat_vec_product(n, rep, seed, cs_seed, csum) << std::endl;
+            << ": " << t << "\n  " << a / t / 1e9 << ".." << b / t / 1e9 << " GB/s\n";
         PRINT_VECTOR(csum, "  control sum");
 
-        std::cout << "avg time of linear combination, n=" << n << ", repeats=" << rep
-            << ": " << avg_time_of_linear_combination(n, rep, seed, cs_seed, csum) << std::endl;
+        t = avg_time_of_linear_combination(n, rep, seed, cs_seed, csum, a);
+        std::cout << "\n\navg time of linear combination, n=" << n << ", repeats=" << rep
+            << ": " << t << std::endl
+            << "  " << a / t / 1e9 << " GB/s\n";
         PRINT_VECTOR(csum, "  control sum");
 
         double dot = -1;
-        std::cout << "avg time of dot product, n=" << n << ", repeats=" << rep
-            << ": " << avg_time_of_dot_product(n, rep, seed, dot) << std::endl
+        t = avg_time_of_dot_product(n, rep, seed, dot, a);
+        std::cout << "\n\navg time of dot product, n=" << n << ", repeats=" << rep
+            << ": " << t << std::endl
+            << "  " << a / t / 1e9 << " GB/s\n"
             << "  dot : " << dot << std::endl;
     }
 }

@@ -13,12 +13,13 @@ int main(int argc, char **args) {
 
 
     int n = 1000, /* rep = 100, num_threads = 8,*/ seed = 1, cs_seed = 2;
-    bool debug = false;
+    bool debug = false, timetest = false;
     if (argc == 1) {
         if (!my_id) {
             std::cout << "Usage: " << args[0]
                 << " n [--seed=SEED]"
                 << " [--cs_seed=CS_SEED] [--debug]\n\n"
+                << "  --timetest  measure mean time of operations\n"
                 << "  --debug  print matrices and vectors to stdout\n"
                 << "  --seed=SEED  set seed for generating data\n"
                 << "  --cs_seed=CS_SEED  set seed for control sums\n";
@@ -40,6 +41,9 @@ int main(int argc, char **args) {
         else if (arg.find("--seed=") == 0) {
             seed = std::stoi(arg.substr(7));
         }
+        else if (arg == "--timetest") {
+            timetest = true;
+        }
     }
 
     if (argc > 1) {
@@ -59,9 +63,13 @@ int main(int argc, char **args) {
 
     std::cout.precision(16);
 
-    test_dot_product_mpi(n, seed, my_id, process_cnt, debug);
-    test_mat_vec_product_mpi(n, seed, cs_seed, my_id, process_cnt, debug);
-    test_linear_combination_mpi(n, seed, cs_seed, my_id, process_cnt, debug);
+    if (!timetest) {
+        test_dot_product_mpi(n, seed, my_id, process_cnt, debug);
+        test_mat_vec_product_mpi(n, seed, cs_seed, my_id, process_cnt, debug);
+        test_linear_combination_mpi(n, seed, cs_seed, my_id, process_cnt, debug);
+    }
+    else {
+    }
 
 main_exit:
     MPI_Finalize();
