@@ -20,11 +20,11 @@ void product(
         std::vector<double> &ans) {
 
     ans.resize(A.size(), 0);
+    // read JA.size() * sizeof(size_t) + (n .. JA.size()) * sizeof(double) + JA.size() * sizeof(double)
+    // write n * sizeof(double)
 #ifdef _OPENMP
     #pragma omp parallel for
 #endif
-    // read JA.size() * sizeof(size_t) + (n .. JA.size()) * sizeof(double) + JA.size() * sizeof(double)
-    // write n * sizeof(double)
     for (size_t i = 0; i < A.size(); ++i) {
         for (size_t k = A.JA_begin(i); k < A.JA_end(i); ++k) {
             ans[i] += A.values[k] * v[A.JA[k]];
