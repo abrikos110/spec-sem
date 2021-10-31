@@ -1,9 +1,11 @@
 #ifndef MPI_TIMETEST_H
 #define MPI_TIMETEST_H
 
-#include "timetest.h"
+#include <chrono>
 #include "mpi_operations.h"
 
+
+double time();
 
 double avg_time_of_mat_vec_product_mpi(size_t n, size_t repeats,
         uint_fast64_t seed, uint_fast64_t cs_seed,

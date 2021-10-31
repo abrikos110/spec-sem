@@ -26,10 +26,11 @@
 #include <chrono>
 #include <thread>
 #include <iostream>
+#include <utility>
 
 #include <mpi.h>
 
-#include "matrices.h"
+#include "csr_matrix.h"
 
 
 #define handle_res(res) handle_res_f(res, #res " FAILED")
@@ -39,39 +40,26 @@ void handle_res_f(int res, const char *err_msg);
 size_t my_begin(size_t n, size_t my_id, size_t proc_cnt);
 size_t my_end(size_t n, size_t my_id, size_t proc_cnt);
 
-
 void generate_matrix_mpi(size_t n, uint_fast64_t seed, CSR_matrix &my_piece,
     size_t my_id, size_t proc_cnt);
 
 void generate_vector_mpi(size_t n, uint_fast64_t seed,
     std::vector<double> &ans, size_t my_id, size_t proc_cnt);
 
-
 double dot_product_mpi(const std::vector<double> &a,
     const std::vector<double> &b);
 
-void test_dot_product_mpi(size_t n, uint_fast64_t seed,
-        size_t my_id, size_t proc_cnt, bool debug);
-
+void linear_combination(double a, double b,
+        std::vector<double> &x, const std::vector<double> &y);
 
 std::vector<double> control_sum_mpi(size_t n,
         const std::vector<double> &x,
         uint_fast64_t seed, size_t my_id, size_t proc_cnt);
-
-void test_linear_combination_mpi(
-        size_t n, uint_fast64_t seed,
-        uint_fast64_t cs_seed,
-        size_t my_id, size_t proc_cnt, bool debug);
-
 
 void product_mpi(size_t n,
         const CSR_matrix &mat_piece,
         const std::vector<double> &v_piece,
         std::vector<double> &ans_piece,
         size_t my_id, size_t proc_cnt);
-
-void test_mat_vec_product_mpi(
-        size_t n, uint_fast64_t seed, uint_fast64_t cs_seed,
-        size_t my_id, size_t proc_cnt, bool debug);
 
 #endif

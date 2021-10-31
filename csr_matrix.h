@@ -1,5 +1,5 @@
-#ifndef MATRICES_H
-#define MATRICES_H
+#ifndef CSR_MATRIX_H
+#define CSR_MATRIX_H
 
 #include <vector>
 
@@ -28,15 +28,5 @@ struct CSR_matrix {
 
     double getv(size_t i, size_t j) const;
 };
-
-
-void product(const CSR_matrix &A,
-    const std::vector<double> &v, std::vector<double> &ans);
-
-double dot_product(const std::vector<double> &a,
-    const std::vector<double> &b);
-
-void linear_combination(double a, double b,
-    std::vector<double> &x, const std::vector<double> &y);
 
 #endif
