@@ -51,13 +51,13 @@ void generate_vector_mpi(
         std::vector<double> &ans,
         size_t my_id, size_t proc_cnt) {
 
-    double x = std::sin(seed) * 1234.56789
-        + 10 * my_begin(n, my_id, proc_cnt);
+    size_t ib = my_begin(n, my_id, proc_cnt);
+    double x = std::sin(seed) * 1234.56789;
 
-    ans.reserve(my_end(n, my_id, proc_cnt) - my_begin(n, my_id, proc_cnt));
-    for (size_t i = my_begin(n, my_id, proc_cnt);
-            i < my_end(n, my_id, proc_cnt); ++i) {
-        ans.push_back(std::sin(x += 10));
+    ans.resize(my_end(n, my_id, proc_cnt) - my_begin(n, my_id, proc_cnt));
+    #pragma omp parallel for
+    for (size_t i = ib; i < my_end(n, my_id, proc_cnt); ++i) {
+        ans[i - ib] = std::sin(x + 10 * (i+1));
     }
 }
 
@@ -123,17 +123,13 @@ std::vector<double> control_sum_mpi(size_t n,
 }
 
 
-void product_mpi(size_t n,
+void init(size_t n,
         const CSR_matrix &mat_piece,
-        const std::vector<double> &v_piece,
-        std::vector<double> &ans_piece,
+        std::vector<size_t> &want,
+        std::vector<std::pair<size_t, size_t> > &ask,
+        std::vector<size_t> &reverse_want,
         size_t my_id, size_t proc_cnt) {
 
-    ans_piece.resize(my_end(n, my_id, proc_cnt)
-        - my_begin(n, my_id, proc_cnt), 0);
-
-    std::vector<size_t> want;
-    std::vector<std::pair<size_t, size_t> > ask;
     for (size_t i = 0; i < mat_piece.size(); ++i) {
         for (size_t k = mat_piece.JA_begin(i); k < mat_piece.JA_end(i); ++k) {
             size_t col = mat_piece.JA[k];
@@ -147,7 +143,23 @@ void product_mpi(size_t n,
     want.erase(std::unique(want.begin(), want.end()), want.end());
     ask.erase(std::unique(ask.begin(), ask.end()), ask.end());
 
-    std::vector<double> wanted(want.size()), asked;
+    reverse_want.resize(n);
+    for (size_t i = 0; i < want.size(); ++i) {
+        reverse_want[want[i]] = i;
+    }
+
+}
+
+
+void update(size_t n,
+        const std::vector<double> &v_piece,
+        const std::vector<size_t> &want,
+        const std::vector<std::pair<size_t, size_t> > &ask,
+        std::vector<double> &wanted,
+        std::vector<double> &asked,
+        size_t my_id, size_t proc_cnt) {
+
+    wanted.resize(want.size());
     for (auto k : ask) {
         asked.push_back(v_piece[k.first - my_begin(n, my_id, proc_cnt)]);
     }
@@ -179,10 +191,25 @@ void product_mpi(size_t n,
     }
     handle_res(MPI_Waitall(reqs.size(), &reqs[0], MPI_STATUSES_IGNORE));
 
-    std::vector<size_t> reverse_want(n);
-    for (size_t i = 0; i < want.size(); ++i) {
-        reverse_want[want[i]] = i;
-    }
+}
+
+
+void product_mpi(size_t n,
+        const CSR_matrix &mat_piece,
+        const std::vector<double> &v_piece,
+        std::vector<double> &ans_piece,
+        size_t my_id, size_t proc_cnt) {
+
+    ans_piece.resize(my_end(n, my_id, proc_cnt)
+        - my_begin(n, my_id, proc_cnt), 0);
+
+    std::vector<size_t> want, reverse_want;
+    std::vector<std::pair<size_t, size_t> > ask;
+    init(n, mat_piece, want, ask, reverse_want, my_id, proc_cnt);
+
+    std::vector<double> wanted, asked;
+    update(n, v_piece, want, ask, wanted, asked, my_id, proc_cnt);
+
     for (size_t i = 0; i < mat_piece.size(); ++i) {
         for (size_t k = mat_piece.JA_begin(i); k < mat_piece.JA_end(i); ++k) {
             size_t col = mat_piece.JA[k];

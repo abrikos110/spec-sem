@@ -40,11 +40,13 @@ void handle_res_f(int res, const char *err_msg);
 size_t my_begin(size_t n, size_t my_id, size_t proc_cnt);
 size_t my_end(size_t n, size_t my_id, size_t proc_cnt);
 
+
 void generate_matrix_mpi(size_t n, uint_fast64_t seed, CSR_matrix &my_piece,
     size_t my_id, size_t proc_cnt);
 
 void generate_vector_mpi(size_t n, uint_fast64_t seed,
     std::vector<double> &ans, size_t my_id, size_t proc_cnt);
+
 
 double dot_product_mpi(const std::vector<double> &a,
     const std::vector<double> &b);
@@ -55,6 +57,22 @@ void linear_combination(double a, double b,
 std::vector<double> control_sum_mpi(size_t n,
         const std::vector<double> &x,
         uint_fast64_t seed, size_t my_id, size_t proc_cnt);
+
+
+void init(size_t n,
+        const CSR_matrix &mat_piece,
+        std::vector<size_t> &want,
+        std::vector<std::pair<size_t, size_t> > &ask,
+        std::vector<size_t> &reverse_want,
+        size_t my_id, size_t proc_cnt);
+
+void update(size_t n,
+        const std::vector<double> &v_piece,
+        const std::vector<size_t> &want,
+        const std::vector<std::pair<size_t, size_t> > &ask,
+        std::vector<double> &wanted,
+        std::vector<double> &asked,
+        size_t my_id, size_t proc_cnt);
 
 void product_mpi(size_t n,
         const CSR_matrix &mat_piece,
