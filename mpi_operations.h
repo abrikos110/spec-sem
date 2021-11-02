@@ -59,24 +59,24 @@ std::vector<double> control_sum_mpi(size_t n,
         uint_fast64_t seed, size_t my_id, size_t proc_cnt);
 
 
-void init(size_t n,
+void init(size_t n, size_t &n_own,
         const CSR_matrix &mat_piece,
-        std::vector<size_t> &want,
+        std::vector<size_t> &l2g,
+        std::vector<size_t> &g2l,
         std::vector<std::pair<size_t, size_t> > &ask,
-        std::vector<size_t> &reverse_want,
         size_t my_id, size_t proc_cnt);
 
-void update(size_t n,
-        const std::vector<double> &v_piece,
-        const std::vector<size_t> &want,
+void update(size_t n_own,
+        std::vector<double> &v_piece,
+        const std::vector<size_t> &l2g,
+        const std::vector<size_t> &g2l,
+        const std::vector<size_t> &part,
         const std::vector<std::pair<size_t, size_t> > &ask,
-        std::vector<double> &wanted,
-        std::vector<double> &asked,
         size_t my_id, size_t proc_cnt);
 
 void product_mpi(size_t n,
         const CSR_matrix &mat_piece,
-        const std::vector<double> &v_piece,
+        std::vector<double> &v_piece,
         std::vector<double> &ans_piece,
         size_t my_id, size_t proc_cnt);
 
