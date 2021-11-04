@@ -72,7 +72,20 @@ void test_mat_vec_product_mpi(
     generate_matrix_mpi(n, 10 + seed, b, my_id, proc_cnt);
     generate_vector_mpi(n, 1+seed, v, my_id, proc_cnt);
 
-    product_mpi(n, b, v, pr, my_id, proc_cnt);
+
+    size_t n_own;
+    std::vector<size_t> l2g, g2l, part;
+    std::vector<std::pair<size_t, size_t> > ask;
+
+    init(n, n_own, b, l2g, g2l, part, ask, my_id, proc_cnt);
+    update(n_own, v, l2g, g2l, part, ask, my_id, proc_cnt);
+
+    l2g.clear();
+    part.clear();
+    ask.clear();
+
+    pr.resize(b.size(), 0);
+    product_mpi(b, v, pr, g2l);
 
     if (debug) {
         std::this_thread::sleep_for(std::chrono::milliseconds(200 * my_id));

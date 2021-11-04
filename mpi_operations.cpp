@@ -63,8 +63,8 @@ void generate_vector_mpi(
 
 
 double dot_product_mpi(
-    const std::vector<double> &a,
-    const std::vector<double> &b) {
+        const std::vector<double> &a,
+        const std::vector<double> &b) {
 
     double ans = 0, all_ans = 0;
     #pragma omp parallel for reduction(+:ans)
@@ -131,15 +131,20 @@ void init(size_t n, size_t &n_own,
         std::vector<std::pair<size_t, size_t> > &ask,
         size_t my_id, size_t proc_cnt) {
 
+    // v_piece[: n_own] is owned data
+    // v_piece[n_own :] is data from other processes
     n_own = my_end(n, my_id, proc_cnt) - my_begin(n, my_id, proc_cnt);
     for (size_t i = my_begin(n, my_id, proc_cnt);
             i < my_end(n, my_id, proc_cnt); ++i) {
         l2g.push_back(i);
     }
+    // part[i] is id of owner of i-th element
     for (size_t i = 0; i < proc_cnt; ++i) {
         part.resize(part.size() + my_end(n, i, proc_cnt) - my_begin(n, i, proc_cnt), i);
     }
 
+    // check for every nonzero element of matrix
+    // and add their indices for future transfers between processes
     for (size_t i = 0; i < mat_piece.size(); ++i) {
         for (size_t k = mat_piece.JA_begin(i); k < mat_piece.JA_end(i); ++k) {
             size_t col = mat_piece.JA[k];
@@ -153,6 +158,7 @@ void init(size_t n, size_t &n_own,
     ask.erase(std::unique(ask.begin(), ask.end()), ask.end());
 
     g2l.resize(n, ((size_t)1) << (8 * sizeof(size_t) - 4));
+    #pragma omp parallel for
     for (size_t i = 0; i < l2g.size(); ++i) {
         g2l[l2g[i]] = i;
     }
@@ -168,12 +174,14 @@ void update(size_t n_own,
 
     std::vector<double> asked;
     v_piece.resize(l2g.size());
+    // fill vector with data owned by process
     for (auto k : ask) {
         asked.push_back(v_piece[g2l[k.first]]);
     }
 
     std::vector<MPI_Request> reqs(proc_cnt * 2, MPI_REQUEST_NULL);
     for (size_t i = n_own, li = n_own, id = 0; i <= l2g.size(); ++i) {
+        // find segment of indices with owner id `id` and receive data
         while (i == l2g.size() || part[l2g[i]] != id) {
             if (i - li > 0) {
                 handle_res(MPI_Irecv(&v_piece[li], i - li, MPI_DOUBLE,
@@ -186,6 +194,7 @@ void update(size_t n_own,
         }
     }
     for (size_t i = 0, li = 0, id = 0; i <= ask.size(); ++i) {
+        // find segment of indices with receiver id `id` and send data
         while (i == ask.size() || part[ask[i].second] != id) {
             if (i - li > 0) {
                 handle_res(MPI_Isend(&asked[li], i - li, MPI_DOUBLE,
@@ -201,27 +210,20 @@ void update(size_t n_own,
 }
 
 
-void product_mpi(size_t n,
-    const CSR_matrix &mat_piece,
-    std::vector<double> &v_piece,
-    std::vector<double> &ans_piece,
-    size_t my_id, size_t proc_cnt) {
+// ans_piece should be resized to mat_piece.size() with zeros
+void product_mpi(const CSR_matrix &mat_piece,
+        std::vector<double> &v_piece,
+        std::vector<double> &ans_piece,
+        const std::vector<size_t> &g2l) {
 
-    size_t n_own;
-    std::vector<size_t> l2g, g2l, part;
-    std::vector<std::pair<size_t, size_t> > ask;
-    init(n, n_own, mat_piece, l2g, g2l, part, ask, my_id, proc_cnt);
-
-    update(n_own, v_piece, l2g, g2l, part, ask, my_id, proc_cnt);
-
-    ans_piece.reserve(mat_piece.size());
+    #pragma omp parallel for
     for (size_t i = 0; i < mat_piece.size(); ++i) {
         double sum = 0;
         for (size_t k = mat_piece.JA_begin(i); k < mat_piece.JA_end(i); ++k) {
             size_t col = mat_piece.JA[k];
             sum += mat_piece.values[k] * v_piece[g2l[col]];
         }
-        ans_piece.push_back(sum);
+        ans_piece[i] = sum;
     }
 }
 
