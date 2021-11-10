@@ -16,7 +16,6 @@ void handle_res_f(int res, const char *err_msg) {
     }
 }
 
-
 size_t my_begin(size_t n, size_t my_id, size_t proc_cnt) {
     return my_id * (n / proc_cnt)
         + (my_id < n % proc_cnt ? my_id : n % proc_cnt);
@@ -26,43 +25,9 @@ size_t my_end(size_t n, size_t my_id, size_t proc_cnt) {
     return my_begin(n, my_id+1, proc_cnt);
 }
 
+//
 
-void generate_matrix_mpi(size_t n, uint_fast64_t seed, CSR_matrix &my_piece,
-        size_t my_id, size_t proc_cnt) {
-
-    double x = std::sin(seed) * 1234.56789
-        + 10 * (my_id > 0) * (-1 + 3 * my_begin(n, my_id, proc_cnt));
-    my_piece.set_size(my_end(n, my_id, proc_cnt) - my_begin(n, my_id, proc_cnt));
-
-    for (size_t i = my_begin(n, my_id, proc_cnt);
-            i < my_end(n, my_id, proc_cnt); ++i) {
-        my_piece.IA[i - my_begin(n, my_id, proc_cnt)] = my_piece.JA.size();
-        for (size_t j = (i-1) * (i>0); j < n && j < i+2; ++j) {
-            my_piece.JA.push_back(j);
-            my_piece.values.push_back(std::sin(x += 10));
-        }
-    }
-
-}
-
-
-void generate_vector_mpi(
-        size_t n, uint_fast64_t seed,
-        std::vector<double> &ans,
-        size_t my_id, size_t proc_cnt) {
-
-    size_t ib = my_begin(n, my_id, proc_cnt);
-    double x = std::sin(seed) * 1234.56789;
-
-    ans.resize(my_end(n, my_id, proc_cnt) - my_begin(n, my_id, proc_cnt));
-    #pragma omp parallel for
-    for (size_t i = ib; i < my_end(n, my_id, proc_cnt); ++i) {
-        ans[i - ib] = std::sin(x + 10 * (i+1));
-    }
-}
-
-
-double dot_product_mpi(
+double dot_product(
         const std::vector<double> &a,
         const std::vector<double> &b) {
 
@@ -87,13 +52,9 @@ void linear_combination(double a, double b,
 }
 
 
-#define PRINT_VECTOR(x, name) do {std::cout << (name) << " : [";\
-    for (auto iggg : (x)) std::cout << iggg << ", ";\
-    std::cout << "]\n"; } while(0)
-
-std::vector<double> control_sum_mpi(size_t n,
+std::vector<double> control_sum_mpi(comm_data &cd,
         const std::vector<double> &x,
-        uint_fast64_t seed, size_t my_id, size_t proc_cnt) {
+        int seed) {
     // sum, L2, min, max, dot(x, random vector)
     std::vector<double> ans, all_ans;
 
@@ -117,111 +78,213 @@ std::vector<double> control_sum_mpi(size_t n,
     all_ans[1] = std::sqrt(all_ans[1]);
 
     std::vector<double> h;
-    generate_vector_mpi(n, seed, h, my_id, proc_cnt);
-    all_ans.push_back(dot_product_mpi(h, x));
+    generate_vector(cd, h, seed);
+    all_ans.push_back(dot_product(h, x));
     return all_ans;
 }
 
+//
 
-void init(size_t n, size_t &n_own,
-        const CSR_matrix &mat_piece,
-        std::vector<size_t> &l2g,
-        std::vector<size_t> &g2l,
-        std::vector<size_t> &part,
-        std::vector<std::pair<size_t, size_t> > &ask,
-        size_t my_id, size_t proc_cnt) {
-
-    // v_piece[: n_own] is owned data
-    // v_piece[n_own :] is data from other processes
-    n_own = my_end(n, my_id, proc_cnt) - my_begin(n, my_id, proc_cnt);
-    for (size_t i = my_begin(n, my_id, proc_cnt);
-            i < my_end(n, my_id, proc_cnt); ++i) {
-        l2g.push_back(i);
+int powmod(int a, int n, long long mod) {
+    if (n == 0) {
+        return 1;
     }
-    // part[i] is id of owner of i-th element
-    for (size_t i = 0; i < proc_cnt; ++i) {
-        part.resize(part.size() + my_end(n, i, proc_cnt) - my_begin(n, i, proc_cnt), i);
+    if (n == 1) {
+        return a;
     }
+    return (powmod(a, n/2, mod) * 1ll * powmod(a, n-n/2, mod)) % mod;
+}
 
-    // check for every nonzero element of matrix
-    // and add their indices for future transfers between processes
-    for (size_t i = 0; i < mat_piece.size(); ++i) {
-        for (size_t k = mat_piece.JA_begin(i); k < mat_piece.JA_end(i); ++k) {
-            size_t col = mat_piece.JA[k];
-            if (part[col] != my_id) {
-                l2g.push_back(col);
-                ask.emplace_back(l2g[i], col);
+// (0 : 1]
+double random(int n, int seed) {
+    static const int M = (1ll<<31) - 1;
+    static const int a = 48271;
+    return ((powmod(a, n + seed, M) + seed) % M + 1.0) / M;
+}
+
+
+// Box-Muller transform
+double normal(int n, int seed) {
+    static const double pi = std::atan2(0, -1);
+    auto u1 = random(2*(n>>1), seed),
+        u2 = random(2*(n>>1)+1, seed);
+    if (n & 1) {
+        return std::sqrt(-2 * std::log(u1)) * std::cos(2*pi*u2);
+    }
+    return std::sqrt(-2 * std::log(u1)) * std::sin(2*pi*u2);
+}
+
+
+// uses only cd.l2g, cd.n_own
+void generate_matrix(comm_data &cd,
+        CSR_matrix &mat_piece,
+        size_t nx,
+        int seed) {
+
+    mat_piece.set_size(cd.n_own);
+    for (size_t i = 0; i < cd.n_own; ++i) {
+        mat_piece.IA[i] = mat_piece.JA.size();
+        auto gi = cd.l2g[i];
+        for (size_t j : {gi-nx, gi-1, gi, gi+1, gi+nx}) {
+            if (j >= cd.n) {
+                continue;
             }
+            mat_piece.JA.push_back(j);
+            mat_piece.values.push_back(normal(gi, seed));
         }
-    }
-    l2g.erase(std::unique(l2g.begin() + n_own, l2g.end()), l2g.end());
-    ask.erase(std::unique(ask.begin(), ask.end()), ask.end());
-
-    g2l.resize(n, ((size_t)1) << (8 * sizeof(size_t) - 4));
-    #pragma omp parallel for
-    for (size_t i = 0; i < l2g.size(); ++i) {
-        g2l[l2g[i]] = i;
     }
 }
 
-void update(size_t n_own,
-        std::vector<double> &v_piece,
-        const std::vector<size_t> &l2g,
-        const std::vector<size_t> &g2l,
-        const std::vector<size_t> &part,
-        const std::vector<std::pair<size_t, size_t> > &ask,
-        size_t my_id, size_t proc_cnt) {
 
-    std::vector<double> asked;
-    v_piece.resize(l2g.size());
-    // fill vector with data owned by process
-    for (auto k : ask) {
-        asked.push_back(v_piece[g2l[k.first]]);
+// uses only cd.l2g, cd.n_own
+void generate_vector(comm_data &cd,
+        std::vector<double> &vec_piece,
+        int seed) {
+
+    vec_piece.resize(cd.n_own);
+    #pragma omp parallel for
+    for (size_t i = 0; i < cd.n_own; ++i) {
+        vec_piece[i] = normal(cd.l2g[i], seed);
     }
+}
 
-    std::vector<MPI_Request> reqs(proc_cnt * 2, MPI_REQUEST_NULL);
-    for (size_t i = n_own, li = n_own, id = 0; i <= l2g.size(); ++i) {
-        // find segment of indices with owner id `id` and receive data
-        while (i == l2g.size() || part[l2g[i]] != id) {
-            if (i - li > 0) {
-                handle_res(MPI_Irecv(&v_piece[li], i - li, MPI_DOUBLE,
-                    id, my_id, MPI_COMM_WORLD, &reqs[id]));
-            }
-            li = i; ++id;
-            if (i == l2g.size()) {
-                break;
+
+// cd.proc_cnt should be equal to px * py
+// cd.n should be equal to nx * ny
+void init_l2g_part(comm_data &cd,
+        size_t nx, size_t ny, size_t px, size_t py) {
+
+    for (size_t i = my_begin(nx, cd.my_id / py, px);
+            i < my_end(nx, cd.my_id / py, px); ++i) {
+        for (size_t j = my_begin(ny, cd.my_id % py, py);
+                j < my_end(ny, cd.my_id % py, py); ++j) {
+            cd.l2g.push_back(i * nx + j);
+        }
+    }
+    cd.n_own = cd.l2g.size();
+
+    // part[i] -- id of process which own i-th element of vector
+    cd.part.resize(cd.n);
+    // THIS SHOULD BE REWRITTEN FOR BETTER PERFORMANCE
+    for(size_t id = 0; id < cd.proc_cnt; ++id) {
+    for (size_t i = my_begin(nx, id / py, px);
+            i < my_end(nx, id / py, px); ++i) {
+        for (size_t j = my_begin(ny, id % py, py);
+                j < my_end(ny, id % py, py); ++j) {
+            cd.part[i * nx + j] = id;
+        }}}
+}
+
+
+// cd.proc_cnt should be equal to px * py
+// cd.n should be equal to nx * ny
+void init(comm_data &cd,
+        size_t nx, size_t ny, size_t px, size_t py,
+        int seed,
+        CSR_matrix &mat_piece,
+        std::vector<double> &vec_piece) {
+
+    init_l2g_part(cd, nx, ny, px, py);
+
+    generate_matrix(cd, mat_piece, nx, seed);
+    generate_vector(cd, vec_piece, seed*2+1);
+
+    // create lists of indices for sending and receiving
+    // send_list[i] -- indices to send to i-th process
+    // recv_list[i] -- indices to receive from i-th process
+    std::vector<std::vector<size_t> > send_list(cd.proc_cnt), recv_list(cd.proc_cnt);
+    for (size_t i = 0; i < cd.n_own; ++i) {
+        for (size_t k = mat_piece.JA_begin(i); k < mat_piece.JA_end(i); ++k) {
+            auto col = mat_piece.JA[k];
+            if (cd.part[col] != cd.my_id) {
+                cd.l2g.push_back(col);
+                recv_list[cd.part[col]].push_back(col);
+                send_list[cd.part[col]].push_back(cd.l2g[i]);
             }
         }
     }
-    for (size_t i = 0, li = 0, id = 0; i <= ask.size(); ++i) {
-        // find segment of indices with receiver id `id` and send data
-        while (i == ask.size() || part[ask[i].second] != id) {
-            if (i - li > 0) {
-                handle_res(MPI_Isend(&asked[li], i - li, MPI_DOUBLE,
-                    id, id, MPI_COMM_WORLD, &reqs[id + proc_cnt]));
+
+    // sort, unique and flatten send_list
+    for (auto &x : send_list) {
+        cd.send_offset.push_back(cd.send_list.size());
+        std::sort(x.begin(), x.end());
+        x.erase(std::unique(x.begin(), x.end()), x.end());
+        for (auto y : x) {
+            cd.send_list.push_back(y);
+        }
+    }
+    cd.send_offset.push_back(cd.send_list.size());
+    // sort, unique and flatten recv_list
+    for (auto &x : recv_list) {
+        cd.recv_offset.push_back(cd.recv_list.size());
+        std::sort(x.begin(), x.end());
+        x.erase(std::unique(x.begin(), x.end()), x.end());
+        for (auto y : x) {
+            cd.recv_list.push_back(y);
+        }
+    }
+    cd.recv_offset.push_back(cd.recv_list.size());
+
+    cd.g2l.resize(cd.n, -(intptr_t)&cd);
+    #pragma omp parallel for
+    for (size_t i = 0; i < cd.l2g.size(); ++i) {
+        cd.g2l[cd.l2g[i]] = i;
+    }
+}
+
+void update(comm_data &cd,
+    std::vector<double> &vec_piece) {
+
+    std::vector<double> send_buf(cd.send_list.size()),
+        recv_buf(cd.recv_list.size());
+
+    // fill send_buf with data from our vector
+    #pragma omp parallel for
+    for (size_t i = 0; i < send_buf.size(); ++i) {
+        send_buf[i] = vec_piece[cd.g2l[cd.send_list[i]]];
+    }
+
+    // send and receive from/to neighbours
+    std::vector<MPI_Request> reqs(2 * cd.proc_cnt, MPI_REQUEST_NULL);
+    for (size_t id = 0; id < cd.proc_cnt; ++id) {
+        if (id != cd.my_id) {
+            if (cd.send_offset[id+1] > cd.send_offset[id]) {
+                handle_res(MPI_Isend(&send_buf[cd.send_offset[id]],
+                    cd.send_offset[id+1] - cd.send_offset[id], MPI_DOUBLE,
+                    id, id, MPI_COMM_WORLD, &reqs[2*id]));
             }
-            li = i; ++id;
-            if (i == ask.size()) {
-                break;
+            if (cd.recv_offset[id+1] > cd.recv_offset[id]) {
+                handle_res(MPI_Irecv(&recv_buf[cd.recv_offset[id]],
+                    cd.recv_offset[id+1] - cd.recv_offset[id], MPI_DOUBLE,
+                    id, cd.my_id, MPI_COMM_WORLD, &reqs[2*id+1]));
             }
         }
     }
     handle_res(MPI_Waitall(reqs.size(), &reqs[0], MPI_STATUSES_IGNORE));
+
+    if (vec_piece.size() != cd.l2g.size()) {
+        vec_piece.resize(cd.l2g.size());
+    }
+    // fill vec_piece with updated values
+    #pragma omp parallel for
+    for (size_t i = 0; i < recv_buf.size(); ++i) {
+        vec_piece[cd.g2l[cd.recv_list[i]]] = recv_buf[i];
+    }
 }
 
 
 // ans_piece should be resized to mat_piece.size() with zeros
-void product_mpi(const CSR_matrix &mat_piece,
-        std::vector<double> &v_piece,
-        std::vector<double> &ans_piece,
-        const std::vector<size_t> &g2l) {
+void product(comm_data &cd,
+        CSR_matrix &mat_piece,
+        std::vector<double> &vec_piece,
+        std::vector<double> &ans_piece) {
 
     #pragma omp parallel for
     for (size_t i = 0; i < mat_piece.size(); ++i) {
         double sum = 0;
         for (size_t k = mat_piece.JA_begin(i); k < mat_piece.JA_end(i); ++k) {
             size_t col = mat_piece.JA[k];
-            sum += mat_piece.values[k] * v_piece[g2l[col]];
+            sum += mat_piece.values[k] * vec_piece[cd.g2l[col]];
         }
         ans_piece[i] = sum;
     }

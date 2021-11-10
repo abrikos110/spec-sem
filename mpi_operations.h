@@ -34,50 +34,65 @@
 
 
 #define handle_res(res) handle_res_f(res, #res " FAILED")
-
 void handle_res_f(int res, const char *err_msg);
 
 size_t my_begin(size_t n, size_t my_id, size_t proc_cnt);
 size_t my_end(size_t n, size_t my_id, size_t proc_cnt);
 
 
-void generate_matrix_mpi(size_t n, uint_fast64_t seed, CSR_matrix &my_piece,
-    size_t my_id, size_t proc_cnt);
-
-void generate_vector_mpi(size_t n, uint_fast64_t seed,
-    std::vector<double> &ans, size_t my_id, size_t proc_cnt);
-
-
-double dot_product_mpi(const std::vector<double> &a,
+double dot_product(
+    const std::vector<double> &a,
     const std::vector<double> &b);
 
 void linear_combination(double a, double b,
-        std::vector<double> &x, const std::vector<double> &y);
+    std::vector<double> &x, const std::vector<double> &y);
 
-std::vector<double> control_sum_mpi(size_t n,
+
+struct comm_data {
+    std::vector<size_t> l2g, g2l, part, send_list, recv_list,
+        send_offset, recv_offset;
+    size_t n, n_own, my_id, proc_cnt;
+
+    comm_data(size_t n, size_t my_id, size_t proc_cnt)
+        : n(n), my_id(my_id), proc_cnt(proc_cnt) {}
+};
+
+std::vector<double> control_sum_mpi(comm_data &cd,
     const std::vector<double> &x,
-    uint_fast64_t seed, size_t my_id, size_t proc_cnt);
+    int seed);
+
+double random(int n, int seed); // (0 : 1]
+double normal(int n, int seed); // return random value from N(0, 1)
+
+// uses only cd.l2g, cd.n_own
+void generate_matrix(comm_data &cd,
+        CSR_matrix &mat_piece,
+        size_t nx,
+        int seed);
+
+// uses only cd.l2g, cd.n_own
+void generate_vector(comm_data &cd,
+        std::vector<double> &vec_piece,
+        int seed);
 
 
-void init(size_t n, size_t &n_own,
-    const CSR_matrix &mat_piece,
-    std::vector<size_t> &l2g,
-    std::vector<size_t> &g2l,
-    std::vector<size_t> &part,
-    std::vector<std::pair<size_t, size_t> > &ask,
-    size_t my_id, size_t proc_cnt);
+// cd.proc_cnt should be equal to px * py
+// cd.n should be equal to nx * ny
+void init_l2g_part(comm_data &cd,
+        size_t nx, size_t ny, size_t px, size_t py);
+void init(comm_data &cd,
+        size_t nx, size_t ny, size_t px, size_t py,
+        int seed,
+        CSR_matrix &mat_piece,
+        std::vector<double> &vec_piece);
 
-void update(size_t n_own,
-    std::vector<double> &v_piece,
-    const std::vector<size_t> &l2g,
-    const std::vector<size_t> &g2l,
-    const std::vector<size_t> &part,
-    const std::vector<std::pair<size_t, size_t> > &ask,
-    size_t my_id, size_t proc_cnt);
+void update(comm_data &cd,
+    std::vector<double> &vec_piece);
 
-void product_mpi(const CSR_matrix &mat_piece,
-    std::vector<double> &v_piece,
-    std::vector<double> &ans_piece,
-    const std::vector<size_t> &g2l);
+// ans_piece should be resized to mat_piece.size() with zeros
+void product(comm_data &cd,
+        CSR_matrix &mat_piece,
+        std::vector<double> &vec_piece,
+        std::vector<double> &ans_piece);
 
 #endif
