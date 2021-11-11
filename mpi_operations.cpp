@@ -92,7 +92,11 @@ int powmod(int a, int n, long long mod) {
     if (n == 1) {
         return a;
     }
-    return (powmod(a, n/2, mod) * 1ll * powmod(a, n-n/2, mod)) % mod;
+    if (n & 1) {
+        return (powmod(a, n/2, mod) * 1ll * powmod(a, n-n/2, mod)) % mod;
+    }
+    auto x = powmod(a, n/2, mod);
+    return (x * 1ll * x) % mod;
 }
 
 // (0 : 1]

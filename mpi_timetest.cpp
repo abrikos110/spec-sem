@@ -19,6 +19,7 @@ double avg_time_of_mat_vec_product_mpi(size_t n, size_t nx, size_t ny,
     comm_data cd(n, my_id, proc_cnt);
     std::vector<double> v, pr;
     CSR_matrix a;
+    double st;
 
     init(cd, nx, ny, px, py, seed, a, v);
     update(cd, v);
@@ -39,7 +40,7 @@ double avg_time_of_mat_vec_product_mpi(size_t n, size_t nx, size_t ny,
     min_mem_usage = ja_sz * sizeof(double) + g2l_sz * sizeof(size_t)
         + sizeof(double) * v_sz + ia_sz * sizeof(double);
 
-    double st = time();
+    st = time();
     pr.resize(a.size(), 0);
     for (size_t i = 0; i < repeats; ++i) {
         product(cd, a, v, pr);
@@ -61,6 +62,7 @@ double avg_time_of_linear_combination_mpi(size_t n, size_t nx, size_t ny,
 
     std::vector<double> x, y;
     comm_data cd(n, my_id, proc_cnt);
+    double st;
 
     init_l2g_part(cd, nx, ny, px, py);
     generate_vector(cd, x, seed+1);
@@ -68,7 +70,7 @@ double avg_time_of_linear_combination_mpi(size_t n, size_t nx, size_t ny,
 
     mem_usage = 3 * n * sizeof(double);
 
-    double st = time();
+    st = time();
     for (size_t i = 0; i < repeats; ++i) {
         linear_combination(0.72, 0.27, x, y);
         // this is cumulative sum for my laziness
