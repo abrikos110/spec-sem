@@ -61,8 +61,8 @@ std::vector<double> control_sum_mpi(comm_data &cd,
     const std::vector<double> &x,
     int seed);
 
-double random(int n, int seed); // (0 : 1]
-double normal(int n, int seed); // return random value from N(0, 1)
+double random(size_t n, size_t seed); // (0 : 1]
+double normal(size_t n, size_t seed); // return random value from N(0, 1)
 
 // uses only cd.l2g, cd.n_own
 void generate_matrix(comm_data &cd,

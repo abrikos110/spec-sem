@@ -29,6 +29,7 @@ double avg_time_of_mat_vec_product_mpi(size_t n, size_t nx, size_t ny,
     sz = v.size();
     handle_res(MPI_Allreduce(&sz, &v_sz, 1, my_MPI_SIZE_T, MPI_SUM, MPI_COMM_WORLD));
 
+    // calculate data transmittet to/from RAM
     max_mem_usage = ja_sz * (sizeof(double) + sizeof(size_t) + sizeof(double))
         + ia_sz * sizeof(double);
     min_mem_usage = ja_sz * sizeof(double) + g2l_sz * sizeof(size_t)
@@ -63,6 +64,7 @@ double avg_time_of_linear_combination_mpi(size_t n, size_t nx, size_t ny,
     generate_vector(cd, x, seed+1);
     generate_vector(cd, y, seed+2);
 
+    // calculate data transmittet to/from RAM
     mem_usage = 3 * n * sizeof(double);
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -92,6 +94,7 @@ double avg_time_of_dot_product_mpi(size_t n, size_t nx, size_t ny,
     generate_vector(cd, x, seed+1);
     generate_vector(cd, y, seed+2);
 
+    // calculate data transmittet to/from RAM
     mem_usage = 2 * n * sizeof(double);
 
     MPI_Barrier(MPI_COMM_WORLD);

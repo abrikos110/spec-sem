@@ -18,12 +18,26 @@ void handle_res_f(int res, const char *err_msg) {
 }
 
 size_t my_begin(size_t n, size_t my_id, size_t proc_cnt) {
+    // first n % proc_cnt id`s have (1 + n / proc_cnt) elements each
+    // other have n / proc_cnt elements each
     return my_id * (n / proc_cnt)
         + (my_id < n % proc_cnt ? my_id : n % proc_cnt);
 }
 
 size_t my_end(size_t n, size_t my_id, size_t proc_cnt) {
     return my_begin(n, my_id+1, proc_cnt);
+}
+
+size_t get_id(size_t i, size_t n, size_t proc_cnt) {
+    // my_begin(n, id, proc_cnt) <= i < my_end(n, id, proc_cnt)
+    auto c = n % proc_cnt;
+    auto id = i / (1 + n / proc_cnt); // it is id assuming that id<c
+    // if out assumption is wrong
+    if (id >= c) {
+        id = c / (1 + n / proc_cnt)
+            + (i-c) / (n / proc_cnt);
+    }
+    return id;
 }
 
 //
@@ -86,7 +100,26 @@ std::vector<double> control_sum_mpi(comm_data &cd,
 
 //
 
-int powmod(int a, int n, long long mod) {
+int powmod(int a, size_t n, long long mod) {
+    // static array arr saves some values to increase performace
+    // it works if a is always the same
+    const int ARR_SZ = 1 << 20;
+    static int saved_a = -1;
+    static long long saved_mod = -1;
+    static int arr[ARR_SZ];
+    if (n < ARR_SZ) {
+        if (saved_a == -1) {
+            for (int i = 0; i < ARR_SZ; ++i) {
+                arr[i] = 0;
+            }
+            saved_a = a;
+            saved_mod = mod;
+        }
+        if (a == saved_a && saved_mod == mod && arr[n] != 0) {
+            return arr[n];
+        }
+    }
+
     if (n == 0) {
         return 1;
     }
@@ -98,14 +131,19 @@ int powmod(int a, int n, long long mod) {
     if (n & 1) {
         x = (x * 1ll * a) % mod;
     }
+
+    if (n < ARR_SZ && a == saved_a && saved_mod == mod) {
+        arr[n] = x;
+    }
     return x;
 }
 
-// (0 : 1]
-double random(int n, int seed) {
+// Linear congruential generator
+double random(size_t n, size_t seed) {
     static const int M = (1ll<<31) - 1;
     static const int a = 48271;
-    auto ans = ((powmod(a, n + seed, M) + seed) % M + 1.0) / M;
+    seed = seed % (M-1) + 1;
+    auto ans = ((powmod(a, n, M) * 1ll * seed) % M + 1.0) / M;
     if (ans > 1 || ans <= 0) {
         ans = 1;
     }
@@ -114,7 +152,7 @@ double random(int n, int seed) {
 
 
 // Box-Muller transform
-double normal(int n, int seed) {
+double normal(size_t n, size_t seed) {
     static const double pi = std::atan2(0, -1);
     auto u1 = random(2*(n>>1), seed),
         u2 = random(2*(n>>1)+1, seed);
@@ -143,7 +181,7 @@ void generate_matrix(comm_data &cd,
                 continue;
             }
             mat_piece.JA.push_back(j);
-            mat_piece.values.push_back(normal(gi, seed));
+            mat_piece.values.push_back(normal(gi * cd.n + j, seed));
         }
     }
 }
@@ -167,6 +205,7 @@ void generate_vector(comm_data &cd,
 void init_l2g_part(comm_data &cd,
         size_t nx, size_t ny, size_t px, size_t py) {
 
+    // go through my indices in grid and add them in l2g
     for (size_t i = my_begin(nx, cd.my_id / py, px);
             i < my_end(nx, cd.my_id / py, px); ++i) {
         for (size_t j = my_begin(ny, cd.my_id % py, py);
@@ -178,14 +217,15 @@ void init_l2g_part(comm_data &cd,
 
     // part[i] -- id of process which own i-th element of vector
     cd.part.resize(cd.n);
-    // THIS SHOULD BE REWRITTEN FOR BETTER PERFORMANCE
     for(size_t id = 0; id < cd.proc_cnt; ++id) {
-    for (size_t i = my_begin(nx, id / py, px);
-            i < my_end(nx, id / py, px); ++i) {
-        for (size_t j = my_begin(ny, id % py, py);
-                j < my_end(ny, id % py, py); ++j) {
-            cd.part[i * ny + j] = id;
-        }}}
+        for (size_t i = my_begin(nx, id / py, px);
+                i < my_end(nx, id / py, px); ++i) {
+            for (size_t j = my_begin(ny, id % py, py);
+                    j < my_end(ny, id % py, py); ++j) {
+                cd.part[i * ny + j] = id;
+            }
+        }
+    }
 }
 
 

@@ -9,5 +9,9 @@ double time() {
         / 1e9;
 }
 
+void sleep_ms(unsigned long long t) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(t));
+}
+
 
 #endif

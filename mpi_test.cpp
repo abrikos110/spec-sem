@@ -22,8 +22,10 @@ void test_dot_product_mpi(size_t n, size_t nx, size_t ny, size_t px, size_t py,
     generate_vector(cd, h, 2+seed);
 
     if (debug) {
-        PRINT_VECTOR(v, "v");
-        PRINT_VECTOR(h, "h");
+        sleep_ms(100 * my_id + 100);
+        std::cout << "my id: " << my_id << "\n";
+        PRINT_VECTOR(v, "    v");
+        PRINT_VECTOR(h, "    h");
     }
 
     double dot = dot_product(h, v);
@@ -48,8 +50,10 @@ void test_linear_combination_mpi(size_t n, size_t nx, size_t ny,
         std::cout << "MPI Linear combination test\n";
     }
     if (debug) {
-        PRINT_VECTOR(v, "v");
-        PRINT_VECTOR(h, "h");
+        sleep_ms(100 * my_id + 100);
+        std::cout << "my id: " << my_id << "\n";
+        PRINT_VECTOR(h, "    h");
+        PRINT_VECTOR(v, "    v");
     }
     linear_combination(3.14, 2.78, h, v);
     if (debug) {
@@ -81,13 +85,16 @@ void test_mat_vec_product_mpi(size_t n, size_t nx, size_t ny,
     product(cd, b, v, pr);
 
     if (debug) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(200 * my_id));
-        PRINT_VECTOR(b.IA, "IA");
-        PRINT_VECTOR(b.JA, "JA");
-        PRINT_VECTOR(b.values, "A ");
+        sleep_ms(100 * my_id + 100);
+        std::cout << "my id: " << my_id << "\n";
+
+        PRINT_VECTOR(cd.part, "  cd.part");
+        PRINT_VECTOR(b.IA, "  IA");
+        PRINT_VECTOR(b.JA, "  JA");
+        PRINT_VECTOR(b.values, "  A ");
 
         std::cout << "[\n";
-        for (size_t i = 0; i < n; ++i) {
+        for (size_t i = 0; i < cd.n_own; ++i) {
             std::cout << " [";
             for (size_t j = 0; j < n; ++j) {
                 std::cout << b.getv(i, j) << ",  ";
