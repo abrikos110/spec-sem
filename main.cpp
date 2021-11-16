@@ -22,13 +22,13 @@ int main(int argc, char **args) {
     handle_res(MPI_Comm_rank(MPI_COMM_WORLD, &my_id));
 
 
-    int n = 1000, rep = 100, num_threads = 1, seed = 1, cs_seed = 2,
+    int n, rep = 100, num_threads = 1, seed = 1, cs_seed = 2,
         nx = 0, ny = 0, px = 0, py = 0;
     bool debug = false, timetest = false;
     if (argc == 1) {
         if (!my_id) {
             std::cout << "Usage: " << args[0]
-                << " n [--timetest] [--rep=REPEATS] [--debug] [--seed=SEED] [--cs_seed=CS_SEED]"
+                << " [--timetest] [--rep=REPEATS] [--debug] [--seed=SEED] [--cs_seed=CS_SEED]"
                 "[--num_threads=NUM_THREADS] [--nx=NX] [--ny=NY] [--px=PX] [--py=PY]"
                 << "  --timetest  measure mean time of operations\n"
                 << "  --rep=REPEATS  set repeats for averaging time\n"
@@ -52,7 +52,6 @@ int main(int argc, char **args) {
         }
         else if (arg.find("--num_threads=") == 0) {
             num_threads = std::stoi(arg.substr(14));
-            omp_set_num_threads(num_threads);
         }
         else if (arg == "--timetest") {
             timetest = true;
@@ -65,12 +64,10 @@ int main(int argc, char **args) {
         HANDLE_ARG(px)
         HANDLE_ARG(py)
     }
+    omp_set_num_threads(num_threads);
 
-    if (argc > 1) {
-        n = std::stoi(args[1]);
-    }
-
-    if (nx * ny != n || px * py != process_cnt) {
+    n = nx * ny;
+    if (px * py != process_cnt) {
         std::cerr << "[[[" << nx << " " << ny << " " << n << "]]]" << std::endl;
         std::cerr << "[[[" << px << " " << py << " " << process_cnt << "]]]" << std::endl;
         return 111;
@@ -96,12 +93,13 @@ int main(int argc, char **args) {
         test_linear_combination_mpi(n, nx, ny, px, py, seed, cs_seed, my_id, process_cnt, debug);
     }
     else {
+        int printer = 0;
         std::vector<double> csum;
         size_t a, b;
         double t;
         t = avg_time_of_mat_vec_product_mpi(n, nx, ny, px, py, rep, seed, cs_seed, csum,
             a, b, my_id, process_cnt);
-        if (!my_id) {
+        if (my_id == printer) {
             std::cout << "avg time of mat-vec product, n=" << n << ", repeats=" << rep
                 << ": " << t << "\n  " << a / t / 1e9 << ".." << b / t / 1e9 << " GB/s\n";
             PRINT_VECTOR(csum, "  control sum");
@@ -109,7 +107,7 @@ int main(int argc, char **args) {
 
         double dot = -1;
         t = avg_time_of_dot_product_mpi(n, nx, ny, px, py, rep, seed, dot, a, my_id, process_cnt);
-        if (!my_id) {
+        if (my_id == printer) {
             std::cout << "\n\navg time of dot product, n=" << n << ", repeats=" << rep
                 << ": " << t << std::endl
                 << "  " << a / t / 1e9 << " GB/s\n"
@@ -119,7 +117,7 @@ int main(int argc, char **args) {
 
         t = avg_time_of_linear_combination_mpi(n, nx, ny, px, py, rep, seed,
             cs_seed, csum, a, my_id, process_cnt);
-        if (!my_id) {
+        if (my_id == printer) {
             std::cout << "\n\navg time of linear combination, n=" << n << ", repeats=" << rep
                 << ": " << t << std::endl
                 << "  " << a / t / 1e9 << " GB/s\n";

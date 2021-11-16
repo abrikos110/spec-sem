@@ -2,6 +2,7 @@
 #define MPI_OPERATIONS_CPP
 
 #include "mpi_operations.h"
+#include "my_time.h"
 
 
 #define PRINT_VECTOR(x, name) do {std::cout << (name) << " : [";\
@@ -92,18 +93,23 @@ int powmod(int a, int n, long long mod) {
     if (n == 1) {
         return a;
     }
-    if (n & 1) {
-        return (powmod(a, n/2, mod) * 1ll * powmod(a, n-n/2, mod)) % mod;
-    }
     auto x = powmod(a, n/2, mod);
-    return (x * 1ll * x) % mod;
+    x = (x * 1ll * x) % mod;
+    if (n & 1) {
+        x = (x * 1ll * a) % mod;
+    }
+    return x;
 }
 
 // (0 : 1]
 double random(int n, int seed) {
     static const int M = (1ll<<31) - 1;
     static const int a = 48271;
-    return ((powmod(a, n + seed, M) + seed) % M + 1.0) / M;
+    auto ans = ((powmod(a, n + seed, M) + seed) % M + 1.0) / M;
+    if (ans > 1 || ans <= 0) {
+        ans = 1;
+    }
+    return ans;
 }
 
 
@@ -130,6 +136,9 @@ void generate_matrix(comm_data &cd,
         mat_piece.IA[i] = mat_piece.JA.size();
         auto gi = cd.l2g[i];
         for (size_t j : {gi-nx, gi-1, gi, gi+1, gi+nx}) {
+            // assuming unsignedness of j to avoid comparison with zero
+            // if true value of gi-nx is <0 then unsigned value is very big
+            // (if gi is < (1 << (sizeof(size_t) * CHAR_BIT - 1)))
             if (j >= cd.n) {
                 continue;
             }
@@ -162,7 +171,7 @@ void init_l2g_part(comm_data &cd,
             i < my_end(nx, cd.my_id / py, px); ++i) {
         for (size_t j = my_begin(ny, cd.my_id % py, py);
                 j < my_end(ny, cd.my_id % py, py); ++j) {
-            cd.l2g.push_back(i * nx + j);
+            cd.l2g.push_back(i * ny + j);
         }
     }
     cd.n_own = cd.l2g.size();
@@ -175,11 +184,12 @@ void init_l2g_part(comm_data &cd,
             i < my_end(nx, id / py, px); ++i) {
         for (size_t j = my_begin(ny, id % py, py);
                 j < my_end(ny, id % py, py); ++j) {
-            cd.part[i * nx + j] = id;
+            cd.part[i * ny + j] = id;
         }}}
 }
 
 
+#define MEASURE_TIME(X) do { double gggt = time(); {X;}; std::cerr << "time of '" << #X << "' " << time() - gggt << "\n=======================================" << std::endl; } while(0)
 // cd.proc_cnt should be equal to px * py
 // cd.n should be equal to nx * ny
 void init(comm_data &cd,

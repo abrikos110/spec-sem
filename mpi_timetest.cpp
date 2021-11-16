@@ -2,13 +2,7 @@
 #define MPI_TIMETEST_CPP
 
 #include "mpi_timetest.h"
-
-
-double time() {
-    return std::chrono::duration_cast<std::chrono::nanoseconds>(
-        std::chrono::high_resolution_clock::now().time_since_epoch()).count()
-        / 1e9;
-}
+#include "my_time.h"
 
 
 double avg_time_of_mat_vec_product_mpi(size_t n, size_t nx, size_t ny,
