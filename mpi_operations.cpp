@@ -98,56 +98,21 @@ std::vector<double> control_sum_mpi(comm_data &cd,
     return all_ans;
 }
 
-//
 
-int powmod(int a, size_t n, long long mod) {
-    // static array arr saves some values to increase performace
-    // it works if a is always the same
-    const int ARR_SZ = 1 << 20;
-    static int saved_a = -1;
-    static long long saved_mod = -1;
-    static int arr[ARR_SZ];
-    if (n < ARR_SZ) {
-        if (saved_a == -1) {
-            for (int i = 0; i < ARR_SZ; ++i) {
-                arr[i] = 0;
-            }
-            saved_a = a;
-            saved_mod = mod;
-        }
-        if (a == saved_a && saved_mod == mod && arr[n] != 0) {
-            return arr[n];
-        }
-    }
-
-    if (n == 0) {
-        return 1;
-    }
-    if (n == 1) {
-        return a;
-    }
-    auto x = powmod(a, n/2, mod);
-    x = (x * 1ll * x) % mod;
-    if (n & 1) {
-        x = (x * 1ll * a) % mod;
-    }
-
-    if (n < ARR_SZ && a == saved_a && saved_mod == mod) {
-        arr[n] = x;
-    }
-    return x;
+// hash from stackoverflow
+unsigned f_s(unsigned a) {
+    a = (a ^ 61) ^ (a >> 16);
+    a = a + (a << 3);
+    a = a ^ (a >> 4);
+    a = a * 0x27d4eb2d;
+    a = a ^ (a >> 15);
+    return a;
 }
 
-// Linear congruential generator
+// in (0:1]
 double random(size_t n, size_t seed) {
-    static const int M = (1ll<<31) - 1;
-    static const int a = 48271;
-    seed = seed % (M-1) + 1;
-    auto ans = ((powmod(a, n, M) * 1ll * seed) % M + 1.0) / M;
-    if (ans > 1 || ans <= 0) {
-        ans = 1;
-    }
-    return ans;
+    unsigned ans = f_s(f_s(f_s(n) ^ f_s(seed)) ^ f_s(f_s(n >> 32) ^ f_s(seed >> 32)));
+    return 1 - ans / double(1ll << 32);
 }
 
 
@@ -169,6 +134,8 @@ void generate_matrix(comm_data &cd,
         size_t nx,
         int seed) {
 
+    mat_piece.JA.reserve(5*cd.n_own);
+    mat_piece.values.reserve(5*cd.n_own);
     mat_piece.set_size(cd.n_own);
     for (size_t i = 0; i < cd.n_own; ++i) {
         mat_piece.IA[i] = mat_piece.JA.size();
@@ -229,7 +196,6 @@ void init_l2g_part(comm_data &cd,
 }
 
 
-#define MEASURE_TIME(X) do { double gggt = time(); {X;}; std::cerr << "time of '" << #X << "' " << time() - gggt << "\n=======================================" << std::endl; } while(0)
 // cd.proc_cnt should be equal to px * py
 // cd.n should be equal to nx * ny
 void init(comm_data &cd,
