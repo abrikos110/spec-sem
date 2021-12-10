@@ -70,7 +70,7 @@ int main(int argc, char **args) {
 
     n = nx * ny;
     // px*py should be equal process count
-    if (nx < 1 || ny < 1 || px < 1 || py < 1 || num_threads < 1 || rep < 1) {
+    if (nx < 1 || ny < 1 || px < 1 || py < 1 || num_threads < 1 || rep < 1 || nx < px || ny < py) {
         std::cerr << "Bad input\n";
         goto main_exit;
     }
