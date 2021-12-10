@@ -70,6 +70,10 @@ int main(int argc, char **args) {
 
     n = nx * ny;
     // px*py should be equal process count
+    if (nx < 1 || ny < 1 || px < 1 || py < 1 || num_threads < 1 || rep < 1) {
+        std::cerr << "Bad input\n";
+        goto main_exit;
+    }
     if (px * py != process_cnt) {
         std::cerr << "px*py != process_cnt" << std::endl;
         std::cerr << "[[[" << nx << " " << ny << " " << n << "]]]" << std::endl;
